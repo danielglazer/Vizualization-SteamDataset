@@ -1,0 +1,32 @@
+html,body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Arimo', Arial, sans-serif;
+}
+header {
+    background-color: #353744;
+    height: 8%;
+    width: 100%;
+    text-align: center;
+}
+
+h1 header {
+    display: none;
+}
+nav {
+    float:left;
+    background-color: #643CC7;
+    width: 15%;
+    height: 50%;
+}
+
+main {
+    float: right;
+    background-color: #FFFFFF;
+    width: 85%;
+    height: 92%;
+}
+
+#drop_zone {
+  border: 5px solid blue;
+}
