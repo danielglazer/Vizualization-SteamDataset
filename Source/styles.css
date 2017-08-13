@@ -16,13 +16,17 @@ h1 header {
 nav {
     float:left;
     background-color: #643CC7;
-    width: 15%;
+    width: 20%;
     height: 92%;
 }
 
 main {
     float: right;
     background-color: #FFFFFF;
-    width: 85%;
+    width: 80%;
     height: 92%;
+}
+
+#DragAndDrop {
+   border-color: blue; 
 }
