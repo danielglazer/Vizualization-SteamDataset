@@ -4,10 +4,7 @@
 (function (e, t, n) { var r = e.querySelectorAll("html")[0];
 r.className = r.className.replace(/(^|\s)no-js(\s|$)/, "$1js$2") })(document, window, 0);
 
-function isSuccess(data){
-  return data.type == "FeatureCollection";
-};
-
+var fileData ;
 // A $( document ).ready() block.
 $(document).ready(function () {
   console.log("ready!");
@@ -87,6 +84,8 @@ $(document).ready(function () {
                 var data = JSON.parse(this.result);
                 form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
                 console.log(data);
+                fileData = data;
+                visualize();
             };
 
             reader.readAsText(droppedFiles[0]);
@@ -110,3 +109,38 @@ $(document).ready(function () {
 
 }(document, window, 0));
 });
+
+function isSuccess(data){
+    return data.type == "FeatureCollection";
+  };
+
+function visualize(){
+//     mapboxgl.accessToken = 'pk.eyJ1IjoidmlzdWFsaXphdGlvbiIsImEiOiJjajZldGJhN3AyamRwMnFsczdlZTc1bnV3In0.kWBNVk-R38vQ1mazvFrB6A';
+//     var map = new mapboxgl.Map({
+//     container: 'map',
+//     style: 'mapbox://styles/mapbox/light-v9'
+//     });
+    
+//    var continents = d3.nest()
+//    .key(function(d) { return d.properties.continent;})
+//    .rollup(function(v) { return d3.sum(v, function(d) { return d.properties.country_active; }); })
+//    .entries(fileData.features);
+//    //console.log(continents);
+//     console.log(continents);
+
+//   var economies = d3.nest()
+//    .key(function(d) { return d.properties.economy;})
+//    .entries(fileData.features);
+//    //console.log(continents);
+//     console.log(economies);
+
+    var mymap = L.map('mapid').setView([0, 0], 2);
+
+    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+        minZoom: 2,    
+        maxZoom: 4,
+        id: 'mapbox.streets',
+        style: 'mapbox://styles/mapbox/light-v9',
+        accessToken: 'pk.eyJ1IjoidmlzdWFsaXphdGlvbiIsImEiOiJjajZldGJhN3AyamRwMnFsczdlZTc1bnV3In0.kWBNVk-R38vQ1mazvFrB6A'
+    }).addTo(mymap);
+};
