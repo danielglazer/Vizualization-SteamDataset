@@ -12,8 +12,10 @@ header {
     text-align: center;
 }
 
-h1 header {
-    display: none;
+header h1  {
+    height: 10%;
+    width: 100%;
+    font-size:2rem;
 }
 nav {
     float:left;
@@ -60,59 +62,61 @@ body {
     /* 80 20 */
 }
 
-.container {
+.DNDcontainer {
     width: 100%;
-    max-width: 680px;
+    height: 100%;
+    /* max-width: 680px; */
     /* 800 */
     text-align: center;
     margin: 0 auto;
+    padding: 25% 10%;
 }
 
-.container h1 {
+.DNDcontainer h1 {
     font-size: 42px;
     font-weight: 300;
     color: #0f3c4b;
     margin-bottom: 40px;
 }
 
-.container h1 a:hover,
-.container h1 a:focus {
+.DNDcontainer h1 a:hover,
+.DNDcontainer h1 a:focus {
     color: #39bfd3;
 }
 
-.container nav {
+.DNDcontainer nav {
     margin-bottom: 40px;
 }
 
-.container nav a {
+.DNDcontainer nav a {
     border-bottom: 2px solid #c8dadf;
     display: inline-block;
     padding: 4px 8px;
     margin: 0 5px;
 }
 
-.container nav a.is-selected {
+.DNDcontainer nav a.is-selected {
     font-weight: 700;
     color: #39bfd3;
     border-bottom-color: currentColor;
 }
 
-.container nav a:not( .is-selected):hover,
-.container nav a:not( .is-selected):focus {
+.DNDcontainer nav a:not( .is-selected):hover,
+.DNDcontainer nav a:not( .is-selected):focus {
     border-bottom-color: #0f3c4b;
 }
 
-.container footer {
+.DNDcontainer footer {
     color: #92b0b3;
     margin-top: 40px;
 }
 
-.container footer p+p {
+.DNDcontainer footer p+p {
     margin-top: 1em;
 }
 
-.container footer a:hover,
-.container footer a:focus {
+.DNDcontainer footer a:hover,
+.DNDcontainer footer a:focus {
     color: #39bfd3;
 }
 
@@ -122,6 +126,8 @@ body {
     background-color: #c8dadf;
     position: relative;
     padding: 100px 20px;
+    height: 100%;
+    width: 100%;
 }
 
 .box.has-advanced-upload {

@@ -67,7 +67,6 @@ $(document).ready(function () {
                     droppedFiles = e.dataTransfer.files; // the files that were dropped
                     showFiles(droppedFiles);
                     triggerFormSubmit();
-
                 });
             }
 
@@ -87,9 +86,9 @@ $(document).ready(function () {
                     form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
                     console.log(data);
                     fileData = data;
-                    visualize();
+                    // after data was recieve set up screen 
+                    setUpScreen();
                 };
-
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
             });
@@ -118,41 +117,41 @@ function isSuccess(data) {
 
 function visualize() {
 
-    var widthScale = d3.scaleLinear()
-                    .domain([0, d3.max(fileData.features,function(d)
-                        {return d.properties.country_active})])
-                    .range([0,400]);                
-    console.log(d3.max(fileData.features,function(d)
-                    {return d.properties.country_active}));
+    // var widthScale = d3.scaleLinear()
+    //                 .domain([0, d3.max(fileData.features,function(d)
+    //                     {return d.properties.country_active})])
+    //                 .range([0,400]);                
+    // console.log(d3.max(fileData.features,function(d)
+    //                 {return d.properties.country_active}));
 
-    var color = d3.scaleLinear()
-                .domain([0, d3.max(fileData.features,function(d)
-                    {return d.properties.country_active})])
-                .range(["green","red"]);
+    // var color = d3.scaleLinear()
+    //             .domain([0, d3.max(fileData.features,function(d)
+    //                 {return d.properties.country_active})])
+    //             .range(["green","red"]);
 
-    var canvas = d3.select("main").append("svg")
-        .attr("width", 400)
-        .attr("height", 400);
+    // var canvas = d3.select("main").append("svg")
+    //     .attr("width", 400)
+    //     .attr("height", 400);
 
     // var group = canvas.selectAll('g')
     //     .data(fileData.features)
     //     .enter()
     //     .append("g");
 
-    var bars = canvas.selectAll("rect")
-        .data(fileData.features)
-        .enter()
-        .append("rect")
-        .attr("width",function(d){
-            return widthScale(d.properties.country_active) 
-        })
-        .attr("fill", function(d){
-            return color(d.properties.country_active);
-        })
-        .attr("height", 5)
-        .attr("y",function(d,i){
-            return i;
-         })
+    // var bars = canvas.selectAll("rect")
+    //     .data(fileData.features)
+    //     .enter()
+    //     .append("rect")
+    //     .attr("width",function(d){
+    //         return widthScale(d.properties.country_active) 
+    //     })
+    //     .attr("fill", function(d){
+    //         return color(d.properties.country_active);
+    //     })
+    //     .attr("height", 5)
+    //     .attr("y",function(d,i){
+    //         return i;
+    //      })
 
     // var projection = d3.geoMercator().scale(1000).translate([0, 500]);
 
@@ -194,3 +193,9 @@ function visualize() {
     //     accessToken: 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'
     // }).addTo(mymap);
 };
+
+function setUpScreen() {
+    // first set up the screen and hide the DNDbox 
+    
+    //then show a navbar to the user where the DNDbox was placed instead
+}
