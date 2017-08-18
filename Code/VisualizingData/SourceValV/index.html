@@ -11,18 +11,14 @@
 
     <!-- Setting title and import javascript and css libraries and files -->
     <title> Visualization - Steam Dataset</title>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.css' rel='stylesheet' />
-    <link rel="stylesheet" href="../Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
-    <link rel="stylesheet" href="../Libraries/leaflet/leaflet.css" />
-    <link rel="stylesheet" type="text/css" href="styles.css" media="screen" />
-    <script src='../Libraries/leaflet/leaflet.js'></script>
-    <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
+
     <script src='../Libraries/d3/d3.js'></script>
     <script src='../Libraries/jquery/jquery-3.2.1.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.0.4/popper.js"></script>
     <script src='../Libraries/bootstrap-4.0.0-beta-dist/js/bootstrap.js'></script>
     <script type='text/javascript' src='main.js'></script>
-
+    <link rel="stylesheet" href="../Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
+    <link rel="stylesheet" type="text/css" href="styles.css" media="screen" />
 </head>
 
 <body>
@@ -32,7 +28,7 @@
         <Logo></Logo>
     </header>
     <nav>
-        <div class="DNDcontainer" role="form">
+        <div class="container" role="main">
             <form method="post" class="box">
                 <div class="box__input">
                     <svg class="box__icon" xmlns="http://www.w3.org/2000/svg" width="50" height="43" viewBox="0 0 50 43">
@@ -40,7 +36,7 @@
                         />
                     </svg>
                     <input type="file" name="files[]" id="file" class="box__file" data-multiple-caption="{count} files selected" multiple />
-                    <label for="file" ><strong>Choose a file</strong><span class="box__dragndrop"> or drag it here</span>.</label>
+                    <label for="file"><strong>Choose a file</strong><span class="box__dragndrop"> or drag it here</span>.</label>
                     <button type="submit" class="box__button">Upload</button>
                 </div>
 
@@ -53,7 +49,6 @@
         </div>
     </nav>
     <main>
-            <div id='mapid'></div>
     </main>
 </body>
 

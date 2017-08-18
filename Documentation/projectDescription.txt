@@ -1,0 +1,14 @@
+Projects should be submitted as follows:
+
+1. Project documentation (email and submission page)
+
+2. Working code with data example (submission page)
+
+ 
+
+Project Documentation:
+
+The document should follow the nested model learned in the course (3 question).
+The proposed visualizations should be explained by the terminology of the nested model,
+and using a visual mapping description, and supported by screenshots,
+finally evaluate your visualization by wither the Value of Visualization of Self-assessment as exercised in the course.

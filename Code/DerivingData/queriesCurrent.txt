@@ -1,0 +1,622 @@
+This file discribe the sql file in the same folder.
+containing our dataset after deleting unneccesary data from it as documented below.
+
+
+1. // drop not relevant tables
+DROP table IF EXISTS GAMES_1, GAMES_PUBLISHERS, GAMES_PUBLISHERS_OLD, GAMES_GENRES_OLD, APP_ID_INFO_OLD, GROUPS FRIENDS,
+Game_Developers_old, Game_Developers, Game_Developers, ACHIEVEMENT_PERCENTAGES
+
+2. // only intrested in games
+
+DELETE FROM app_id_info WHERE app_id_info.type <> 'game';
+
+3. // drop not relevant columns from the remaining tables 
+
+ALTER TABLE player_summaries DROP avatar, DROP avatarmedium, drop avatarfull, drop realname,
+drop primaryclanid, drop lastlogoff, drop timecreated, drop gameid, drop gameserverip,
+drop dateretrieved, drop gameextrainfo, drop personastate, drop communityvisibilitystate,
+drop commentpermission, drop profileurl, drop personaname, DROP profilestate, DROP cityid;
+
+ALTER TABLE app_id_info DROP type;
+
+ALTER TABLE games_2 DROP dateretrieved;
+
+4. // delete rows with players that has no country 
+
+DELETE FROM player_summaries 
+WHERE loccountrycode is null;
+
+DELETE g FROM games_2 g
+	  LEFT JOIN PLAYER_SUMMARIES p ON p.steamid = g.steamid  
+      WHERE p.steamid IS NULL 
+
+DELETE g FROM GAMES_DAILY g
+	  LEFT JOIN PLAYER_SUMMARIES p ON p.steamid = g.steamid  
+      WHERE p.steamid IS NULL 
+
+
+
+
+5. // delete rows with games that their type in app_id_info isn't 'game' 
+
+DELETE g FROM games_genres g
+	  LEFT JOIN app_id_info p ON p.appid = g.appid
+      WHERE p.appid IS NULL 
+
+DELETE g FROM games_2 g
+	  LEFT JOIN app_id_info p ON p.appid = g.appid
+      WHERE p.appid IS NULL
+
+DELETE g FROM games_daily g
+	  LEFT JOIN app_id_info p ON p.appid = g.appid
+      WHERE p.appid IS NULL
+
+DELETE g FROM player_summaries g
+	  LEFT JOIN games_2 p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+
+	  
+	  
+// At this point we are left of with:
+player_summaries - a table with players and there locations
+games_2 - the games those players play 
+games_daily - a subset of players monitored closely for each of the pairs (player + game) about 30 sampels.
+app_id_info - info about the games
+games_genres - pairs of game and genre
+
+6. // We want to focuos on 10 games from the dataset and the players that play those games
+
+delete from app_id_info
+where appid <> 570 and appid <> 730 and appid <> 440 and appid <> 4000 and appid <> 72850 and
+appid <> 252490 and appid <> 8930 and appid <> 105600 and appid <> 221100 and appid <> 218620;
+
+delete from games_genres
+where appid <> 570 and appid <> 730 and appid <> 440 and appid <> 4000 and appid <> 72850 and
+appid <> 252490 and appid <> 8930 and appid <> 105600 and appid <> 221100 and appid <> 218620;
+
+delete from games_daily
+where appid <> 570 and appid <> 730 and appid <> 440 and appid <> 4000 and appid <> 72850 and
+appid <> 252490 and appid <> 8930 and appid <> 105600 and appid <> 221100 and appid <> 218620;
+
+delete from games_2
+where appid <> 570 and appid <> 730 and appid <> 440 and appid <> 4000 and appid <> 72850 and
+appid <> 252490 and appid <> 8930 and appid <> 105600 and appid <> 221100 and appid <> 218620;
+
+DELETE g FROM player_summaries g
+	  LEFT JOIN games_2 p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+
+
+7. // add a column to player_summaries
+
+ALTER TABLE player_summaries
+ADD loccountrycode_alpha3 varchar(3);
+
+Update player_summaries SET loccountrycode_alpha3 = ? 
+	where loccountrycode = ? ;
+
+*see files AlfaConverter1.java for clerification of the query above
+ 
+ 
+8. // create a result table
+
+	create table results_table ( 
+	alpha3 varchar(3),
+    
+    avg_play_time int(10),
+	all_num_owners int(7),
+    all_num_active int(7),
+    
+    
+    num_casual_users int(7),
+    num_moderate_users int(7),
+    num_excessive_users int(7),
+    
+	game1owners int(7),
+    game2owners int(7),
+	game3owners int(7),
+    game4owners int(7),
+    game5owners int(7),
+    game6owners int(7),
+    game7owners int(7),
+    game8owners int(7),
+    game9owners int(7),
+    game10owners int(7),
+    
+    game1active_users int(7),
+    game2active_users int(7),
+	game3active_users int(7),
+    game4active_users int(7),
+	game5active_users int(7),
+    game6active_users int(7),
+	game7active_users int(7),
+    game8active_users int(7),
+	game9active_users int(7),
+    game10active_users int(7),
+    
+    game1avg_play_time int(10),
+    game2avg_play_time int(10),
+	game3avg_play_time int(10),
+    game4avg_play_time int(10),
+	game5avg_play_time int(10),
+    game6avg_play_time int(10),
+	game7avg_play_time int(10),
+    game8avg_play_time int(10),
+	game9avg_play_time int(10),
+    game10avg_play_time int(10),
+    
+    game1casual_users int(7),
+    game2casual_users int(7),
+	game3casual_users int(7),
+    game4casual_users int(7),
+	game5casual_users int(7),
+    game6casual_users int(7),
+	game7casual_users int(7),
+    game8casual_users int(7),
+	game9casual_users int(7),
+    game10casual_users int(7),
+    
+    game1moderate_users int(7),
+    game2moderate_users int(7),
+	game3moderate_users int(7),
+    game4moderate_users int(7),
+	game5moderate_users int(7),
+    game6moderate_users int(7),
+	game7moderate_users int(7),
+    game8moderate_users int(7),
+	game9moderate_users int(7),
+    game10moderate_users int(7),
+    
+    game1excessive_users int(7),
+    game2excessive_users int(7),
+	game3excessive_users int(7),
+    game4excessive_users int(7),
+	game5excessive_users int(7),
+    game6excessive_users int(7),
+	game7excessive_users int(7),
+    game8excessive_users int(7),
+	game9excessive_users int(7),
+    game10excessive_users int(7),
+    
+	PRIMARY KEY (alpha3)
+    );
+	
+
+	
+
+9. // manual change for 1 small country we discovered
+
+UPDATE player_summaries as p
+	SET p.loccountrycode_alpha3 = 'TLS'
+    where p.loccountrycode = 'TP'
+	
+// deleting several countries that does not exist anymore
+
+delete from player_summaries 
+where loccountrycode_alpha3 is null
+
+DELETE g FROM games_2 g
+	  LEFT JOIN player_summaries p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+
+DELETE g FROM games_daily g
+	  LEFT JOIN player_summaries p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+	
+	
+	
+	
+10. // convert to alpha3 using AlfaConverter2.java
+
+ALTER TABLE player_summaries
+ADD loccountrycode_new_alpha3 varchar(3);
+
+UPDATE player_summaries as p
+	SET p.loccountrycode_new_alpha3 = ?
+    where p.loccountrycode_alpha3 = ? ;
+
+	
+// deleting several countries that does not exist anymore
+
+!!! //TODO: delete this rows from the newschema
+
+delete from player_summaries 
+where loccountrycode_alpha3 is null
+
+DELETE g FROM games_2 g
+	  LEFT JOIN player_summaries p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+
+DELETE g FROM games_daily g
+	  LEFT JOIN player_summaries p ON p.steamid = g.steamid
+      WHERE p.steamid IS NULL
+	
+	
+ALTER TABLE player_summaries DROP loccountrycode_new_alpha3, drop loccountrycode ;
+	
+	
+10. // how to calculate the alpha3,all_num_owners,all_num_active
+
+	Insert into results_table (alpha3, all_num_owners, all_num_active) 
+	values (? , 
+	(SELECT COUNT(DISTINCT steamid) 
+	From player_summaries as P
+	where loccountrycode_alpha3 = ?),
+	(SELECT COUNT(DISTINCT P.steamid) 
+	From player_summaries as P
+	where Exists (Select *
+	From games_2 as G
+	where P.steamid = G.steamid and P.loccountrycode_alpha3 = ? and G.playtime_2weeks is not null)));
+	
+11. // how to calculate the num_casual_users,num_moderate_users , num_excessive_users
+	
+	UPDATE results_table as R
+	SET R.num_casual_users = (
+	Select Count(distinct P.steamid)
+	From player_summaries as P 
+	where P.loccountrycode_alpha3 = ? and 60*2*14 >= (Select sum(G.playtime_2weeks)
+													 From games_2 as G
+													 Where G.steamid = P.steamid)
+	), R.num_moderate_users = (
+	Select Count(distinct P.steamid)
+	From player_summaries as P 
+	where P.loccountrycode_alpha3 = ? and 60*2*14 < (Select sum(G.playtime_2weeks)
+													 From games_2 as G
+													 Where G.steamid = P.steamid) 
+									  and 60*4*14 > (Select sum(G.playtime_2weeks)
+													 From games_2 as G
+													 Where G.steamid = P.steamid) 
+	), R.num_excessive_users = (
+	Select Count(distinct P.steamid)
+	From player_summaries as P 
+	where P.loccountrycode_alpha3 = ? and 60*4*14 <= (Select sum(G.playtime_2weeks)
+													 From games_2 as G
+													 Where G.steamid = P.steamid) 
+	)
+	WHERE R.alpha3 = ?;
+
+12. // how to calculate the gameowners,gameactive_users per each game per country
+
+
+UPDATE results_table as R
+SET 
+R.game1owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game2owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game3owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game4owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game5owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game6owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game7owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game8owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game9owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game10owners = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ?),
+R.game1active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game2active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game3active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),		
+R.game4active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game5active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game6active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game7active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game8active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),
+R.game9active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null),				
+R.game10active_users = (SELECT COUNT(DISTINCT P.steamid) 
+					From player_summaries as P, games_2 as G
+					where P.loccountrycode_alpha3 = ? and P.steamid = G.steamid and G.appid = ? and G.playtime_2weeks is not null)        
+where R.alpha3 = ?;
+
+
+13. // how to calculate the game_casual_users, game_moderate_users, game_excessive_users , game_avg_play_time, avg_play_time
+
+// see the file SimpleQueries4.java for more details
+
+UPDATE results_table as R
+SET 
+R.game1casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game2casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game3casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game4casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game5casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game6casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game7casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game8casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game9casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+R.game10casual_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 >= G.playtime_2weeks ),
+                    
+R.game1moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game2moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game3moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),		
+R.game4moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game5moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game6moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game7moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game8moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+R.game9moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),				
+R.game10moderate_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+    60*2*14 < G.playtime_2weeks and 60*4*14 > G.playtime_2weeks),
+                    
+R.game1excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game2excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game3excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game4excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game5excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game6excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game7excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game8excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game9excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+R.game10excessive_users = (Select Count(distinct P.steamid)
+	From player_summaries as P , games_2 as G
+	where P.loccountrycode_alpha3 = ? and g.appid = ? and G.steamid = P.steamid and 
+     60*4*14 <= G.playtime_2weeks),
+     
+R.game1avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game2avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game3avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game4avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game5avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game6avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game7avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game8avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game9avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+R.game10avg_play_time = 
+(select avg((select (G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid and G.appid = ? ))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?),
+
+R.avg_play_time = 
+(select avg((select sum(G.playtime_2weeks)
+			from games_2 as G
+			where G.steamid = P.steamid))
+	from player_summaries as P 
+	where P.loccountrycode_alpha3 = ?)
+where R.alpha3 = ?;
+
+
+// some queries to ease the writing to a json file
+
+UPDATE results_table as R
+SET 
+R.game1avg_play_time = 0
+where R.game1avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game2avg_play_time = 0
+where R.game2avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game3avg_play_time = 0
+where R.game3avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game4avg_play_time = 0
+where R.game4avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game5avg_play_time = 0
+where R.game5avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game6avg_play_time = 0
+where R.game6avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game7avg_play_time = 0
+where R.game7avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game8avg_play_time = 0
+where R.game8avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game9avg_play_time = 0
+where R.game9avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.game10avg_play_time = 0
+where R.game10avg_play_time is null
+
+UPDATE results_table as R
+SET 
+R.avg_play_time = 0
+where R.avg_play_time is null
+
+
+14. // adding 3 more coloumns to the result table
+
+done with the original dataset/ the initial one(see file queriesInitial.txt) and not the current one
+
+ALTER TABLE steam_dataset.results_table
+ADD money_spent int;
+
+ALTER TABLE newschema.results_table
+ADD country_owners int;
+
+ALTER TABLE newschema.results_table
+ADD country_active int;
+
+Those values were added proggramaticly (see files SimpleQueries5.java + SimpleQueries6.java for more information).
+
+15. // which properties to store in the json file
+
+- all the properties stored in the results_table (written with the WriteFile.java)
+- chosen properties from the geojson file
+
