@@ -116,12 +116,18 @@ function isSuccess(data) {
     return data.type == "FeatureCollection";
 };
 
+var currentProperty = "pop_est";
+function pickForCurrentProperty(d) {
+    return d.properties[currentProperty];
+}
+
 function visualize() {
 
     var map = L.map('mapid');
     map.createPane('labels');
     map.getPane('labels').style.zIndex = 650;
     map.getPane('labels').style.pointerEvents = 'none';
+
     var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
         attribution: '©OpenStreetMap, ©CartoDB'
     }).addTo(map);
@@ -130,39 +136,97 @@ function visualize() {
         attribution: '©OpenStreetMap, ©CartoDB',
         pane: 'labels'
     }).addTo(map);
-    var geojson = L.geoJson(fileData).addTo(map);
+
+    var color = d3.scaleLinear().domain([1, d3.max(fileData.features, function (d)
+    { return pickForCurrentProperty(d) }
+    )])
+        .interpolate(d3.interpolateHcl)
+        .range([d3.rgb("#deebf7"), d3.rgb('#3182bd')]);
+
+    function getColor(d) {
+        return color(d);
+    }
+
+    function style(feature) {
+        return {
+            fillColor: getColor([pickForCurrentProperty(feature)]),
+            weight: 2,
+            opacity: 1,
+            color: 'black',
+            dashArray: '3',
+            fillOpacity: 0.9
+        };
+    }
+
+    var info = L.control();
+
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+        this.update();
+        return this._div;
+    };
+
+    // method that we will use to update the control based on feature properties passed
+    info.update = function (feature) {
+        this._div.innerHTML = (feature ?
+            '<b>' + feature.properties.name + '</b><br />' + '<b>' + currentProperty + '</b><br />' + pickForCurrentProperty(feature)
+            : 'Hover over a country');
+    };
+
+    info.addTo(map);
+
+    function highlightFeature(e) {
+        var layer = e.target;
+
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '',
+            fillOpacity: 0.7
+        });
+
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+        info.update(layer.feature);
+    }
+
+    function resetHighlight(e) {
+        geojson.resetStyle(e.target);
+        info.update();
+    }
+
+    function zoomToFeature(e) {
+        map.fitBounds(e.target.getBounds());
+    }
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+
+    var geojson = L.geoJson(fileData, {
+        style: style,
+        onEachFeature: onEachFeature
+    }).addTo(map);
+
     geojson.eachLayer(function (layer) {
         layer.bindPopup(layer.feature.properties.name);
     });
 
     map.fitBounds(geojson.getBounds());
-    
-    //    var continents = d3.nest()
-    //    .key(function(d) { return d.properties.continent;})
-    //    .rollup(function(v) { return d3.sum(v, function(d) { return d.properties.country_active; }); })
-    //    .entries(fileData.features);
-    //    //console.log(continents);
-    //     console.log(continents);
+    var southWest = L.latLng(-89.98155760646617, -180),
+        northEast = L.latLng(89.99346179538875, 180);
+    var bounds = L.latLngBounds(southWest, northEast);
 
-    //   var economies = d3.nest()
-    //    .key(function(d) { return d.properties.economy;})
-    //    .entries(fileData.features);
-    //    //console.log(continents);
-    //     console.log(economies);
+    map.setMaxBounds(bounds);
+    map.on('drag', function () {
+        map.panInsideBounds(bounds, { animate: false });
+    });
+    map.setMinZoom(2);
+    map.setMaxZoom(4);
 
-
-    //     var mymap = L.map('mapid').setView([0, 0], 2);
-    //     L.tileLayer.provider('Esri.WorldGrayCanvas').addTo(mymap);
-    //     var countriesLayer = L.geoJson(fileData).addTo(mymap);
-
-
-    //     mymap.fitBounds(countriesLayer);
-    // L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
-    //     minZoom: 2,    
-    //     maxZoom: 4,
-    //     id: 'mapbox.streets',
-    //     style: 'mapbox://styles/mapbox/light-v9',
-    //     accessToken: 'pk.eyJ1IjoidmlzdWFsaXphdGlvbiIsImEiOiJjajZldGJhN3AyamRwMnFsczdlZTc1bnV3In0.kWBNVk-R38vQ1mazvFrB6A'
-    //     accessToken: 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'
-    // }).addTo(mymap);
 };
