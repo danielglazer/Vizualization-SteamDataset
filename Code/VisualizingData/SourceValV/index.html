@@ -11,14 +11,19 @@
 
     <!-- Setting title and import javascript and css libraries and files -->
     <title> Visualization - Steam Dataset</title>
-
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.css' rel='stylesheet' />
+    <link rel="stylesheet" href="../Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
+    <link rel="stylesheet" href="../Libraries/leaflet/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="styles.css" media="screen" />
+    <script src='../Libraries/leaflet/leaflet.js'></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
     <script src='../Libraries/d3/d3.js'></script>
     <script src='../Libraries/jquery/jquery-3.2.1.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.0.4/popper.js"></script>
     <script src='../Libraries/bootstrap-4.0.0-beta-dist/js/bootstrap.js'></script>
     <script type='text/javascript' src='main.js'></script>
-    <link rel="stylesheet" href="../Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
-    <link rel="stylesheet" type="text/css" href="styles.css" media="screen" />
+    <script src="../Libraries/leaflet/leaflet-providers.js"></script>
+
 </head>
 
 <body>
@@ -49,6 +54,7 @@
         </div>
     </nav>
     <main>
+            <div id='mapid'></div>
     </main>
 </body>
 
