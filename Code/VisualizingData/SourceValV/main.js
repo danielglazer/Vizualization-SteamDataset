@@ -35,7 +35,7 @@ var Handler = (function () {
             });
         },
         getListeners: function () {
-             return listeners;
+            return listeners;
         }
     };
 }());
@@ -77,11 +77,7 @@ $(document).ready(function () {
                 droppedFiles = e.target.files;
                 triggerFormSubmit();
             }, false);
-            // input.addEventListener('change', function (e) {
-            //     showFiles(e.target.files);
-            //     droppedFiles = e.target.files;
-            //     triggerFormSubmit();
-            // });
+       
 
             // drag&drop files if the feature is available
             if (isAdvancedUpload) {
@@ -93,28 +89,19 @@ $(document).ready(function () {
                         e.preventDefault();
                         e.stopPropagation();
                     }, false);
-                    // form.addEventListener(event, function (e) {
-                    //     // preventing the unwanted behaviours
-                    //     e.preventDefault();
-                    //     e.stopPropagation();
-                    // });
+             
                 });
                 ['dragover', 'dragenter'].forEach(function (event) {
                     Handler.addListener(form, event, function () {
                         form.classList.add('is-dragover');
                     }, false);
-                    // form.addEventListener(event, function () {
-                    //     form.classList.add('is-dragover');
-                    // });
+             
                 });
                 ['dragleave', 'dragend', 'drop'].forEach(function (event) {
                     Handler.addListener(form, event, function () {
                         form.classList.remove('is-dragover');
                     }, false);
                     console.log(Handler.listeners);
-                    // form.addEventListener(event, function () {
-                    //     form.classList.remove('is-dragover');
-                    // });
                 });
                 Handler.addListener(form, 'drop', function (e) {
                     droppedFiles = e.dataTransfer.files; // the files that were dropped
@@ -122,12 +109,6 @@ $(document).ready(function () {
                     triggerFormSubmit();
 
                 }, false);
-                // form.addEventListener('drop', function (e) {
-                //     droppedFiles = e.dataTransfer.files; // the files that were dropped
-                //     showFiles(droppedFiles);
-                //     triggerFormSubmit();
-
-                // });
             }
 
 
@@ -147,36 +128,13 @@ $(document).ready(function () {
                     if (isSuccess(data)) {
                         console.log(data);
                         fileData = data;
-                        visualize();
+                        setUpScreen();
                     }
                 };
 
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
             }, false);
-
-            // form.addEventListener('submit', function (e) {
-            //     // preventing the duplicate submissions if the current one is in progress
-            //     if (form.classList.contains('is-uploading')) return false;
-
-            //     form.classList.add('is-uploading');
-            //     form.classList.remove('is-error');
-
-            //     var reader = new FileReader();
-            //     reader.onloadend = function () {
-            //         form.classList.remove('is-uploading');
-            //         var data = validateJSON(this.result);
-            //         form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
-            //         if(isSuccess(data)){
-            //             console.log(data);
-            //             fileData = data;
-            //             visualize();
-            //         }
-            //     };
-
-            //     reader.readAsText(droppedFiles[0]);
-            //     event.preventDefault();
-            // });
 
 
             // restart the form if has a state of error/success
@@ -186,19 +144,11 @@ $(document).ready(function () {
                     form.classList.remove('is-error', 'is-success');
                     input.click();
                 }, false);
-
-                // entry.addEventListener('click', function (e) {
-                //     e.preventDefault();
-                //     form.classList.remove('is-error', 'is-success');
-                //     input.click();
-                // });
             });
 
             // Firefox focus bug fix for file input
             Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
             Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
-            // input.addEventListener('focus', function () { input.classList.add('has-focus'); });
-            // input.addEventListener('blur', function () { input.classList.remove('has-focus'); });
         });
 
     }(document, window, 0));
@@ -231,6 +181,9 @@ function isSuccess(data) {
     }
 };
 
+// 2 colors
+// 2 properties property a,b "a/b" "a*b" "operator"
+// "a+b/c+d"
 var currentProperty = "pop_est";
 function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
@@ -238,27 +191,36 @@ function pickForCurrentProperty(d) {
 
 function translate_to_UI(property_name) {
 
+
 }
+
+function setUpScreen(){
+    Handler.removeAllListeners();
+    $("#DND").fadeOut(2500);
+    visualize();
+}
+
 
 function visualize() {
 
     Handler.removeAllListeners();
+    $("#DND").fadeOut("slow");
 
     var map = L.map('mapid');
     map.createPane('labels');
     map.getPane('labels').style.zIndex = 650;
     map.getPane('labels').style.pointerEvents = 'none';
 
-    var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB'
-    }).addTo(map);
+    // var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+    //     attribution: '©OpenStreetMap, ©CartoDB'
+    // }).addTo(map);
 
     var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
         attribution: '©OpenStreetMap, ©CartoDB',
         pane: 'labels'
     }).addTo(map);
 
-    var color = d3.scaleLinear().domain([1, d3.max(fileData.features, function (d) {
+    var color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
         return pickForCurrentProperty(d)
     }
     )])
@@ -348,6 +310,6 @@ function visualize() {
         map.panInsideBounds(bounds, { animate: false });
     });
     map.setMinZoom(2);
-    map.setMaxZoom(4);
+    map.setMaxZoom(6);
 
 };

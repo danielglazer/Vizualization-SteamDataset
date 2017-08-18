@@ -184,14 +184,6 @@ function visualize() {
 
     // var mymap = L.map('mapid').setView([0, 0], 2);
 
-    // L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
-    //     minZoom: 2,    
-    //     maxZoom: 4,
-    //     id: 'mapbox.streets',
-    //     style: 'mapbox://styles/mapbox/light-v9',
-    //     accessToken: 'pk.eyJ1IjoidmlzdWFsaXphdGlvbiIsImEiOiJjajZldGJhN3AyamRwMnFsczdlZTc1bnV3In0.kWBNVk-R38vQ1mazvFrB6A'
-    //     accessToken: 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'
-    // }).addTo(mymap);
 };
 
 function setUpScreen() {
