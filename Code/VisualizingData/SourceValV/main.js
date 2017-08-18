@@ -6,7 +6,37 @@
     r.className = r.className.replace(/(^|\s)no-js(\s|$)/, "$1js$2")
 })(document, window, 0);
 
+//  handler for listeners 
+var Handler = (function(){
+    var i = 1,
+        listeners = {};
+
+    return {
+        addListener: function(element, event, handler, capture) {
+            element.addEventListener(event, handler, capture);
+            listeners[i] = {element: element, 
+                             event: event, 
+                             handler: handler, 
+                             capture: capture};
+            return i++;
+        },
+        removeListener: function(id) {
+            if(id in listeners) {
+                var h = listeners[id];
+                h.element.removeEventListener(h.event, h.handler, h.capture);
+                delete listeners[id];
+            }
+        },
+        removeAllListeners: function() {
+            Object.keys(listeners).forEach(function(id){
+                removeEventListener(id);
+            });
+        }
+    };
+}());
+
 var fileData;
+
 // A $( document ).ready() block.
 $(document).ready(function () {
     console.log("ready!");
@@ -39,6 +69,7 @@ $(document).ready(function () {
             // automatically submit the form on file select
             input.addEventListener('change', function (e) {
                 showFiles(e.target.files);
+                droppedFiles = e.target.files;
                 triggerFormSubmit();
             });
 
@@ -83,13 +114,15 @@ $(document).ready(function () {
                 var reader = new FileReader();
                 reader.onloadend = function () {
                     form.classList.remove('is-uploading');
-                    var data = JSON.parse(this.result);
+                    var data = validateJSON(this.result);
                     form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
-                    console.log(data);
-                    fileData = data;
-                    visualize();
+                    if(isSuccess(data)){
+                        console.log(data);
+                        fileData = data;
+                        visualize();
+                    }
                 };
-
+                
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
             });
@@ -112,13 +145,40 @@ $(document).ready(function () {
     }(document, window, 0));
 });
 
+function validateJSON(str) {
+    try {
+      var data = JSON.parse(str);
+      // if came to here, then valid
+      return data;
+    } catch(e) {
+      // failed to parse
+      return null;
+    }
+  }
+
 function isSuccess(data) {
-    return data.type == "FeatureCollection";
+    if(data == null){
+        return false;
+    } else if(data.type == null){
+        return false;
+    } else if (data.type != "FeatureCollection") {
+        return false;
+    } else if(data.features == null){
+        return false;
+    } else if (data.games == null) {
+        return false;
+    } else {
+        return true;
+    }
 };
 
 var currentProperty = "pop_est";
 function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
+}
+
+function translate_to_UI(property_name){
+    
 }
 
 function visualize() {
@@ -137,19 +197,16 @@ function visualize() {
         pane: 'labels'
     }).addTo(map);
 
-    var color = d3.scaleLinear().domain([1, d3.max(fileData.features, function (d)
-    { return pickForCurrentProperty(d) }
+    var color = d3.scaleLinear().domain([1, d3.max(fileData.features, function (d) {
+        return pickForCurrentProperty(d)
+    }
     )])
         .interpolate(d3.interpolateHcl)
-        .range([d3.rgb("#deebf7"), d3.rgb('#3182bd')]);
-
-    function getColor(d) {
-        return color(d);
-    }
+        .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
 
     function style(feature) {
         return {
-            fillColor: getColor([pickForCurrentProperty(feature)]),
+            fillColor: color([pickForCurrentProperty(feature)]),
             weight: 2,
             opacity: 1,
             color: 'black',
@@ -169,7 +226,10 @@ function visualize() {
     // method that we will use to update the control based on feature properties passed
     info.update = function (feature) {
         this._div.innerHTML = (feature ?
-            '<b>' + feature.properties.name + '</b><br />' + '<b>' + currentProperty + '</b><br />' + pickForCurrentProperty(feature)
+            '<b>' + feature.properties.name + '</b><br />' +
+            '<b>' + currentProperty + '</b><br />' +
+            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> '+
+            pickForCurrentProperty(feature) + '<br />'
             : 'Hover over a country');
     };
 
@@ -182,7 +242,7 @@ function visualize() {
             weight: 5,
             color: '#666',
             dashArray: '',
-            fillOpacity: 0.7
+            fillOpacity: 1
         });
 
         if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
