@@ -77,7 +77,7 @@ $(document).ready(function () {
                 droppedFiles = e.target.files;
                 triggerFormSubmit();
             }, false);
-       
+
 
             // drag&drop files if the feature is available
             if (isAdvancedUpload) {
@@ -89,13 +89,13 @@ $(document).ready(function () {
                         e.preventDefault();
                         e.stopPropagation();
                     }, false);
-             
+
                 });
                 ['dragover', 'dragenter'].forEach(function (event) {
                     Handler.addListener(form, event, function () {
                         form.classList.add('is-dragover');
                     }, false);
-             
+
                 });
                 ['dragleave', 'dragend', 'drop'].forEach(function (event) {
                     Handler.addListener(form, event, function () {
@@ -194,7 +194,11 @@ function translate_to_UI(property_name) {
 
 }
 
-function setUpScreen(){
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function setUpScreen() {
     Handler.removeAllListeners();
     $("#DND").fadeOut(2500);
     visualize();
@@ -252,12 +256,12 @@ function visualize() {
             '<b>' + feature.properties.name + '</b><br />' +
             '<b>' + currentProperty + '</b><br />' +
             '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-            pickForCurrentProperty(feature) + '<br />'
+            numberWithCommas(pickForCurrentProperty(feature)) + '<br />'
             : 'Hover over a country');
     };
-
     info.addTo(map);
 
+    // mouseon listener
     function highlightFeature(e) {
         var layer = e.target;
 
@@ -273,16 +277,16 @@ function visualize() {
         }
         info.update(layer.feature);
     }
-
+    // mouseout listener
     function resetHighlight(e) {
         geojson.resetStyle(e.target);
         info.update();
     }
-
+    // zoom on click
     function zoomToFeature(e) {
         map.fitBounds(e.target.getBounds());
     }
-
+    // highlighting the country, listeners assigment
     function onEachFeature(feature, layer) {
         layer.on({
             mouseover: highlightFeature,
@@ -290,26 +294,47 @@ function visualize() {
             click: zoomToFeature
         });
     }
-
+    // geojson binding
     var geojson = L.geoJson(fileData, {
         style: style,
         onEachFeature: onEachFeature
     }).addTo(map);
-
+    // pop-up dialog
     geojson.eachLayer(function (layer) {
         layer.bindPopup(layer.feature.properties.name);
     });
 
+    // fit to the bounds of the geojson
     map.fitBounds(geojson.getBounds());
+    // dont allow user to pan out of the world map view
     var southWest = L.latLng(-89.98155760646617, -180),
         northEast = L.latLng(89.99346179538875, 180);
     var bounds = L.latLngBounds(southWest, northEast);
-
     map.setMaxBounds(bounds);
     map.on('drag', function () {
         map.panInsideBounds(bounds, { animate: false });
     });
     map.setMinZoom(2);
     map.setMaxZoom(6);
+
+    // legend
+    var legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function (map) {
+        var max = d3.max(fileData.features, function (d) {
+            return pickForCurrentProperty(d)
+        });
+        var div = L.DomUtil.create('div', 'info legend'),
+            grades = [0, Math.floor((1/4)*max), Math.floor((2/4)*max), Math.floor((3/4)*max), Math.floor(max)],
+            labels = [];
+
+        // loop through our density intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < grades.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + color(grades[i]) + '"></i> ' +
+                numberWithCommas(grades[i]) + '<br>';
+        }
+        return div;
+    };
+    legend.addTo(map);
 
 };
