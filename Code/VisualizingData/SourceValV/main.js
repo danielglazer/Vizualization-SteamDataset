@@ -7,30 +7,35 @@
 })(document, window, 0);
 
 //  handler for listeners 
-var Handler = (function(){
+var Handler = (function () {
     var i = 1,
         listeners = {};
 
     return {
-        addListener: function(element, event, handler, capture) {
+        addListener: function (element, event, handler, capture) {
             element.addEventListener(event, handler, capture);
-            listeners[i] = {element: element, 
-                             event: event, 
-                             handler: handler, 
-                             capture: capture};
+            listeners[i] = {
+                element: element,
+                event: event,
+                handler: handler,
+                capture: capture
+            };
             return i++;
         },
-        removeListener: function(id) {
-            if(id in listeners) {
+        removeListener: function (id) {
+            if (id in listeners) {
                 var h = listeners[id];
                 h.element.removeEventListener(h.event, h.handler, h.capture);
                 delete listeners[id];
             }
         },
-        removeAllListeners: function() {
-            Object.keys(listeners).forEach(function(id){
-                removeEventListener(id);
+        removeAllListeners: function () {
+            Object.keys(listeners).forEach(function (id) {
+                Handler.removeListener(id);
             });
+        },
+        getListeners: function () {
+             return listeners;
         }
     };
 }());
@@ -67,44 +72,67 @@ $(document).ready(function () {
                 };
 
             // automatically submit the form on file select
-            input.addEventListener('change', function (e) {
+            Handler.addListener(input, 'change', function (e) {
                 showFiles(e.target.files);
                 droppedFiles = e.target.files;
                 triggerFormSubmit();
-            });
+            }, false);
+            // input.addEventListener('change', function (e) {
+            //     showFiles(e.target.files);
+            //     droppedFiles = e.target.files;
+            //     triggerFormSubmit();
+            // });
 
             // drag&drop files if the feature is available
             if (isAdvancedUpload) {
                 form.classList.add('has-advanced-upload'); // letting the CSS part to know drag&drop is supported by the browser
 
                 ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
-                    form.addEventListener(event, function (e) {
+                    Handler.addListener(form, event, function (e) {
                         // preventing the unwanted behaviours
                         e.preventDefault();
                         e.stopPropagation();
-                    });
+                    }, false);
+                    // form.addEventListener(event, function (e) {
+                    //     // preventing the unwanted behaviours
+                    //     e.preventDefault();
+                    //     e.stopPropagation();
+                    // });
                 });
                 ['dragover', 'dragenter'].forEach(function (event) {
-                    form.addEventListener(event, function () {
+                    Handler.addListener(form, event, function () {
                         form.classList.add('is-dragover');
-                    });
+                    }, false);
+                    // form.addEventListener(event, function () {
+                    //     form.classList.add('is-dragover');
+                    // });
                 });
                 ['dragleave', 'dragend', 'drop'].forEach(function (event) {
-                    form.addEventListener(event, function () {
+                    Handler.addListener(form, event, function () {
                         form.classList.remove('is-dragover');
-                    });
+                    }, false);
+                    console.log(Handler.listeners);
+                    // form.addEventListener(event, function () {
+                    //     form.classList.remove('is-dragover');
+                    // });
                 });
-                form.addEventListener('drop', function (e) {
+                Handler.addListener(form, 'drop', function (e) {
                     droppedFiles = e.dataTransfer.files; // the files that were dropped
                     showFiles(droppedFiles);
                     triggerFormSubmit();
 
-                });
+                }, false);
+                // form.addEventListener('drop', function (e) {
+                //     droppedFiles = e.dataTransfer.files; // the files that were dropped
+                //     showFiles(droppedFiles);
+                //     triggerFormSubmit();
+
+                // });
             }
 
 
             // if the form was submitted
-            form.addEventListener('submit', function (e) {
+            Handler.addListener(form, 'submit', function (e) {
                 // preventing the duplicate submissions if the current one is in progress
                 if (form.classList.contains('is-uploading')) return false;
 
@@ -116,30 +144,61 @@ $(document).ready(function () {
                     form.classList.remove('is-uploading');
                     var data = validateJSON(this.result);
                     form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
-                    if(isSuccess(data)){
+                    if (isSuccess(data)) {
                         console.log(data);
                         fileData = data;
                         visualize();
                     }
                 };
-                
+
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
-            });
+            }, false);
+
+            // form.addEventListener('submit', function (e) {
+            //     // preventing the duplicate submissions if the current one is in progress
+            //     if (form.classList.contains('is-uploading')) return false;
+
+            //     form.classList.add('is-uploading');
+            //     form.classList.remove('is-error');
+
+            //     var reader = new FileReader();
+            //     reader.onloadend = function () {
+            //         form.classList.remove('is-uploading');
+            //         var data = validateJSON(this.result);
+            //         form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
+            //         if(isSuccess(data)){
+            //             console.log(data);
+            //             fileData = data;
+            //             visualize();
+            //         }
+            //     };
+
+            //     reader.readAsText(droppedFiles[0]);
+            //     event.preventDefault();
+            // });
 
 
             // restart the form if has a state of error/success
             Array.prototype.forEach.call(restart, function (entry) {
-                entry.addEventListener('click', function (e) {
+                Handler.addListener(entry, 'click', function (e) {
                     e.preventDefault();
                     form.classList.remove('is-error', 'is-success');
                     input.click();
-                });
+                }, false);
+
+                // entry.addEventListener('click', function (e) {
+                //     e.preventDefault();
+                //     form.classList.remove('is-error', 'is-success');
+                //     input.click();
+                // });
             });
 
             // Firefox focus bug fix for file input
-            input.addEventListener('focus', function () { input.classList.add('has-focus'); });
-            input.addEventListener('blur', function () { input.classList.remove('has-focus'); });
+            Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
+            Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
+            // input.addEventListener('focus', function () { input.classList.add('has-focus'); });
+            // input.addEventListener('blur', function () { input.classList.remove('has-focus'); });
         });
 
     }(document, window, 0));
@@ -147,23 +206,23 @@ $(document).ready(function () {
 
 function validateJSON(str) {
     try {
-      var data = JSON.parse(str);
-      // if came to here, then valid
-      return data;
-    } catch(e) {
-      // failed to parse
-      return null;
+        var data = JSON.parse(str);
+        // if came to here, then valid
+        return data;
+    } catch (e) {
+        // failed to parse
+        return null;
     }
-  }
+}
 
 function isSuccess(data) {
-    if(data == null){
+    if (data == null) {
         return false;
-    } else if(data.type == null){
+    } else if (data.type == null) {
         return false;
     } else if (data.type != "FeatureCollection") {
         return false;
-    } else if(data.features == null){
+    } else if (data.features == null) {
         return false;
     } else if (data.games == null) {
         return false;
@@ -177,11 +236,13 @@ function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
 }
 
-function translate_to_UI(property_name){
-    
+function translate_to_UI(property_name) {
+
 }
 
 function visualize() {
+
+    Handler.removeAllListeners();
 
     var map = L.map('mapid');
     map.createPane('labels');
@@ -228,7 +289,7 @@ function visualize() {
         this._div.innerHTML = (feature ?
             '<b>' + feature.properties.name + '</b><br />' +
             '<b>' + currentProperty + '</b><br />' +
-            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> '+
+            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
             pickForCurrentProperty(feature) + '<br />'
             : 'Hover over a country');
     };
