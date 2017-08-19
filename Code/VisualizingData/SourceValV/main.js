@@ -128,7 +128,7 @@ $(document).ready(function () {
                     if (isSuccess(data)) {
                         console.log(data);
                         fileData = data;
-                        setUpScreen();
+                        setUpHomeScreen();
                     }
                 };
 
@@ -275,11 +275,70 @@ function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function setUpScreen() {
+function setUpHomeScreen() {
+    // first set up the screen and hide the DNDbox 
+    $("#DND").fadeOut("slow");
+    //also remove all it's eventListeners
     Handler.removeAllListeners();
-    $("#DND").fadeOut(2500);
+    //craete the nav bar buttons
+    
+    var  tempFunc = function (){
+        console.log("info");
+    }
+
+    var btnGroup = $("nav").append("<div class='btn-group-vertical' role='group'></div>");
+
+    btnGroup.append(createButton("button", "info1", "btn btn-info onTop", tempFunc));
+    btnGroup.append(createButton("button", "info2", "btn btn-info onTop", tempFunc));
+    btnGroup.append(createButton("button", "info3", "btn btn-info onTop", tempFunc));
+    // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
+    // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
+    // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
+    
+
+
+    // <button type="button" class="btn btn-primary">Primary</button>
+    // <button type="button" class="btn btn-secondary">Secondary</button>
+    // <button type="button" class="btn btn-success">Success</button>
+    // <button type="button" class="btn btn-danger">Danger</button>
+    // <button type="button" class="btn btn-warning">Warning</button>
+    // <button type="button" class="btn btn-info">Info</button>
+    // <button type="button" class="btn btn-light">Light</button>
+    // <button type="button" class="btn btn-dark">Dark</button>
+    //add button listener via Handler
+
+    //then show a navbar to the user where the DNDbox was placed instead
+
+    //accordung to the subject that was clicked change View
+
+    // according to the view visualize the data
     visualize();
 }
+var btnText ={
+    "info" : "Information",
+    "map" : "ColorplathMap"
+};
+ 
+/**
+* create a button with the specified id and classes 
+ * and attach an onClick listener with the parameter function  
+ * @param {String} id 
+ * @param {String} classes 
+ * @param {Function} onClickFunction 
+ * @returns 
+ */
+function createButton(type, id, classes, onClickFunction) {
+    var btn = $('<button/>', {
+        text: id, //set text 1 to 10
+        id: id,
+        type : type,
+        click: onClickFunction
+    });
+    btn.a
+    return btn;
+};
+
+
 
 
 function visualize() {
@@ -425,39 +484,40 @@ function visualize() {
         // loop through our density intervals and generate a label with a colored square for each interval
         for (var i = 0; i < grades.length; i++) {
             this._div.innerHTML +=
-                '<i style="background:' + color(grades[i]) + '"></i> ' +
+                // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                 numberWithCommas(grades[i]) + '<br>';
         }
     }
     legend.addTo(map);
 
-    var propertyCtrl = L.control({ position: 'bottomleft' });
-    propertyCtrl.onAdd = function (map) {
-        var div = L.DomUtil.create('div', 'info propertyCtrl');
+    // var propertyCtrl = L.control({ position: 'bottomleft' });
+    // propertyCtrl.onAdd = function (map) {
+    //     var div = L.DomUtil.create('div', 'info propertyCtrl');
 
-        var jdiv = $(div);
-        var form = $("<form></form>");
+    //     var jdiv = $(div);
+    //     var form = $("<form></form>");
 
-        if (fileData.features.length > 1) {
-            var props = Object.keys(fileData.features[0].properties);
-            props.sort();
+    //     if (fileData.features.length > 1) {
+    //         var props = Object.keys(fileData.features[0].properties);
+    //         props.sort();
 
-            for (var i = 0; i < props.length; i++) {
-                var radioBtn = $('<input type="radio" name="property_"' + props[i] + '" value=' + props[i] + ' />');
-                radioBtn.on('change', function (e) {
-                    console.log(this.value);
-                    currentProperty = this.value;
-                    updateMap();
-                });
-                form.append(radioBtn);
-            }
+    //         for (var i = 0; i < props.length; i++) {
+    //             var radioBtn = $('<input type="radio" name="property_"' + props[i] + '" value=' + props[i] + ' />');
+    //             radioBtn.on('change', function (e) {
+    //                 console.log(this.value);
+    //                 currentProperty = this.value;
+    //                 updateMap();
+    //             });
+    //             form.append(radioBtn);
+    //         }
 
-            jdiv.append(form);
-        }
+    //         jdiv.append(form);
+    //     }
 
-        return jdiv[0];
-    }
-    propertyCtrl.addTo(map);
+    //     return jdiv[0];
+    // }
+    // propertyCtrl.addTo(map);
 
     function updateMap() {
         regenColor();
@@ -468,3 +528,5 @@ function visualize() {
         });
     }
 };
+
+

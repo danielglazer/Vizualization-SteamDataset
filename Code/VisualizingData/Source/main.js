@@ -6,7 +6,42 @@
     r.className = r.className.replace(/(^|\s)no-js(\s|$)/, "$1js$2")
 })(document, window, 0);
 
+//  handler for listeners 
+var Handler = (function () {
+    var i = 1,
+        listeners = {};
+
+    return {
+        addListener: function (element, event, handler, capture) {
+            element.addEventListener(event, handler, capture);
+            listeners[i] = {
+                element: element,
+                event: event,
+                handler: handler,
+                capture: capture
+            };
+            return i++;
+        },
+        removeListener: function (id) {
+            if (id in listeners) {
+                var h = listeners[id];
+                h.element.removeEventListener(h.event, h.handler, h.capture);
+                delete listeners[id];
+            }
+        },
+        removeAllListeners: function () {
+            Object.keys(listeners).forEach(function (id) {
+                Handler.removeListener(id);
+            });
+        },
+        getListeners: function () {
+            return listeners;
+        }
+    };
+}());
+
 var fileData;
+
 // A $( document ).ready() block.
 $(document).ready(function () {
     console.log("ready!");
@@ -37,42 +72,47 @@ $(document).ready(function () {
                 };
 
             // automatically submit the form on file select
-            input.addEventListener('change', function (e) {
+            Handler.addListener(input, 'change', function (e) {
                 showFiles(e.target.files);
+                droppedFiles = e.target.files;
                 triggerFormSubmit();
-            });
+            }, false);
+
 
             // drag&drop files if the feature is available
             if (isAdvancedUpload) {
                 form.classList.add('has-advanced-upload'); // letting the CSS part to know drag&drop is supported by the browser
 
                 ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
-                    form.addEventListener(event, function (e) {
+                    Handler.addListener(form, event, function (e) {
                         // preventing the unwanted behaviours
                         e.preventDefault();
                         e.stopPropagation();
-                    });
+                    }, false);
+
                 });
                 ['dragover', 'dragenter'].forEach(function (event) {
-                    form.addEventListener(event, function () {
+                    Handler.addListener(form, event, function () {
                         form.classList.add('is-dragover');
-                    });
+                    }, false);
                 });
                 ['dragleave', 'dragend', 'drop'].forEach(function (event) {
-                    form.addEventListener(event, function () {
+                    Handler.addListener(form, event, function () {
                         form.classList.remove('is-dragover');
-                    });
+                    }, false);
+                    console.log(Handler.listeners);
                 });
-                form.addEventListener('drop', function (e) {
+                Handler.addListener(form, 'drop', function (e) {
                     droppedFiles = e.dataTransfer.files; // the files that were dropped
                     showFiles(droppedFiles);
                     triggerFormSubmit();
-                });
+
+                }, false);
             }
 
 
             // if the form was submitted
-            form.addEventListener('submit', function (e) {
+            Handler.addListener(form, 'submit', function (e) {
                 // preventing the duplicate submissions if the current one is in progress
                 if (form.classList.contains('is-uploading')) return false;
 
@@ -82,112 +122,221 @@ $(document).ready(function () {
                 var reader = new FileReader();
                 reader.onloadend = function () {
                     form.classList.remove('is-uploading');
-                    var data = JSON.parse(this.result);
+                    var data = validateJSON(this.result);
                     form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
-                    console.log(data);
-                    fileData = data;
-                    // after data was recieve set up screen 
-                    setUpScreen();
+                    if (isSuccess(data)) {
+                        console.log(data);
+                        fileData = data;
+                        setUpHomeScreen();
+                    }
                 };
+
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
-            });
+            }, false);
 
 
             // restart the form if has a state of error/success
             Array.prototype.forEach.call(restart, function (entry) {
-                entry.addEventListener('click', function (e) {
+                Handler.addListener(entry, 'click', function (e) {
                     e.preventDefault();
                     form.classList.remove('is-error', 'is-success');
                     input.click();
-                });
+                }, false);
             });
 
             // Firefox focus bug fix for file input
-            input.addEventListener('focus', function () { input.classList.add('has-focus'); });
-            input.addEventListener('blur', function () { input.classList.remove('has-focus'); });
+            Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
+            Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
         });
 
     }(document, window, 0));
 });
 
+function validateJSON(str) {
+    try {
+        var data = JSON.parse(str);
+        // if came to here, then valid
+        return data;
+    } catch (e) {
+        // failed to parse
+        return null;
+    }
+}
+
 function isSuccess(data) {
-    return data.type == "FeatureCollection";
+    if (data == null) {
+        return false;
+    } else if (data.type == null) {
+        return false;
+    } else if (data.type != "FeatureCollection") {
+        return false;
+    } else if (data.features == null) {
+        return false;
+    } else if (data.games == null) {
+        return false;
+    } else {
+        return true;
+    }
 };
+
+// 2 colors
+// 2 properties property a,b "a/b" "a*b" "operator"
+// "a+b/c+d"
+var currentProperty = "pop_est";
+function pickForCurrentProperty(d) {
+    return d.properties[currentProperty];
+}
+
+function translate_to_UI(property_name) {
+
+
+}
+
+function setUpHomeScreen() {
+    // first set up the screen and hide the DNDbox 
+    $("#DND").fadeOut("slow");
+    //also remove all it's eventListeners
+    Handler.removeAllListeners();
+    //craete the nav bar buttons
+
+    //add button listener via Handler
+
+    //then show a navbar to the user where the DNDbox was placed instead
+
+    //accordung to the subject that was clicked change View
+
+    // according to the view visualize the data
+    visualize();
+}
+
+ 
+/**
+* create a button with the specified id and classes 
+ * and attach an onClick listener with the parameter function  
+ * @param {String} id 
+ * @param {String} classes 
+ * @param {Function} onClickFunction 
+ * @returns 
+ */
+function createButton(id, classes, onClickFunction) {
+    var btn = $('<button/>', {
+        text: i, //set text 1 to 10
+        id: id,
+        click: onClickFunction
+    });
+    btn.addClass(cls);
+    return btn;
+};
+
+
 
 function visualize() {
 
-    // var widthScale = d3.scaleLinear()
-    //                 .domain([0, d3.max(fileData.features,function(d)
-    //                     {return d.properties.country_active})])
-    //                 .range([0,400]);                
-    // console.log(d3.max(fileData.features,function(d)
-    //                 {return d.properties.country_active}));
+    var map = L.map('mapid');
+    map.createPane('labels');
+    map.getPane('labels').style.zIndex = 650;
+    map.getPane('labels').style.pointerEvents = 'none';
 
-    // var color = d3.scaleLinear()
-    //             .domain([0, d3.max(fileData.features,function(d)
-    //                 {return d.properties.country_active})])
-    //             .range(["green","red"]);
+    // var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+    //     attribution: '©OpenStreetMap, ©CartoDB'
+    // }).addTo(map);
 
-    // var canvas = d3.select("main").append("svg")
-    //     .attr("width", 400)
-    //     .attr("height", 400);
+    var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+        attribution: '©OpenStreetMap, ©CartoDB',
+        pane: 'labels'
+    }).addTo(map);
 
-    // var group = canvas.selectAll('g')
-    //     .data(fileData.features)
-    //     .enter()
-    //     .append("g");
+    var color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
+        return pickForCurrentProperty(d)
+    }
+    )])
+        .interpolate(d3.interpolateHcl)
+        .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
 
-    // var bars = canvas.selectAll("rect")
-    //     .data(fileData.features)
-    //     .enter()
-    //     .append("rect")
-    //     .attr("width",function(d){
-    //         return widthScale(d.properties.country_active) 
-    //     })
-    //     .attr("fill", function(d){
-    //         return color(d.properties.country_active);
-    //     })
-    //     .attr("height", 5)
-    //     .attr("y",function(d,i){
-    //         return i;
-    //      })
+    function style(feature) {
+        return {
+            fillColor: color([pickForCurrentProperty(feature)]),
+            weight: 2,
+            opacity: 1,
+            color: 'black',
+            dashArray: '3',
+            fillOpacity: 0.9
+        };
+    }
 
-    // var projection = d3.geoMercator().scale(1000).translate([0, 500]);
+    var info = L.control();
 
-    // var path = d3.geoPath().projection(projection);
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+        this.update();
+        return this._div;
+    };
 
-    // var areas = group.append("path")
-    //     .attr("d", path)
-    //     .attr("class", "area")
-    //     .attr("fill", "steelblue");
-    // console.log("done");
+    // method that we will use to update the control based on feature properties passed
+    info.update = function (feature) {
+        this._div.innerHTML = (feature ?
+            '<b>' + feature.properties.name + '</b><br />' +
+            '<b>' + currentProperty + '</b><br />' +
+            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+            pickForCurrentProperty(feature) + '<br />'
+            : 'Hover over a country');
+    };
 
-    //     mapboxgl.accessToken = 'pk.eyJ1IjoidmlzdWFsaXphdGlvbiIsImEiOiJjajZldGJhN3AyamRwMnFsczdlZTc1bnV3In0.kWBNVk-R38vQ1mazvFrB6A';
-    //     var map = new mapboxgl.Map({
-    //     container: 'map',
-    //     style: 'mapbox://styles/mapbox/light-v9'
-    //     });
+    info.addTo(map);
 
-    //    var continents = d3.nest()
-    //    .key(function(d) { return d.properties.continent;})
-    //    .rollup(function(v) { return d3.sum(v, function(d) { return d.properties.country_active; }); })
-    //    .entries(fileData.features);
-    //    //console.log(continents);
-    //     console.log(continents);
+    function highlightFeature(e) {
+        var layer = e.target;
 
-    //   var economies = d3.nest()
-    //    .key(function(d) { return d.properties.economy;})
-    //    .entries(fileData.features);
-    //    //console.log(continents);
-    //     console.log(economies);
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '',
+            fillOpacity: 1
+        });
 
-    // var mymap = L.map('mapid').setView([0, 0], 2);
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+        info.update(layer.feature);
+    }
+
+    function resetHighlight(e) {
+        geojson.resetStyle(e.target);
+        info.update();
+    }
+
+    function zoomToFeature(e) {
+        map.fitBounds(e.target.getBounds());
+    }
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+
+    var geojson = L.geoJson(fileData, {
+        style: style,
+        onEachFeature: onEachFeature
+    }).addTo(map);
+
+    geojson.eachLayer(function (layer) {
+        layer.bindPopup(layer.feature.properties.name);
+    });
+
+    map.fitBounds(geojson.getBounds());
+    var southWest = L.latLng(-89.98155760646617, -180),
+        northEast = L.latLng(89.99346179538875, 180);
+    var bounds = L.latLngBounds(southWest, northEast);
+
+    map.setMaxBounds(bounds);
+    map.on('drag', function () {
+        map.panInsideBounds(bounds, { animate: false });
+    });
+    map.setMinZoom(2);
+    map.setMaxZoom(6);
 
 };
-
-function setUpScreen() {
-    // first set up the screen and hide the DNDbox 
-    
-    //then show a navbar to the user where the DNDbox was placed instead
-}

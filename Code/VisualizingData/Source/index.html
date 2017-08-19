@@ -12,27 +12,28 @@
     <!-- Setting title and import javascript and css libraries and files -->
     <title> Visualization - Steam Dataset</title>
     <link href='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.css' rel='stylesheet' />
-    <link rel="stylesheet" href="Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
-    <link rel="stylesheet" href="Libraries/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="../Libraries/bootstrap-4.0.0-beta-dist/css/bootstrap.css" />
+    <link rel="stylesheet" href="../Libraries/leaflet/leaflet.css" />
     <link rel="stylesheet" type="text/css" href="styles.css" media="screen" />
-    <script src='Libraries/leaflet/leaflet.js'></script>
+    <script src='../Libraries/leaflet/leaflet.js'></script>
     <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
-    <script src='Libraries/d3/d3.js'></script>
-    <script src='Libraries/jquery/jquery-3.2.1.js'></script>
+    <script src='../Libraries/d3/d3.js'></script>
+    <script src='../Libraries/jquery/jquery-3.2.1.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.0.4/popper.js"></script>
-    <script src='Libraries/bootstrap-4.0.0-beta-dist/js/bootstrap.js'></script>
+    <script src='../Libraries/bootstrap-4.0.0-beta-dist/js/bootstrap.js'></script>
     <script type='text/javascript' src='main.js'></script>
+    <script src="../Libraries/leaflet/leaflet-providers.js"></script>
 
 </head>
 
 <body>
-    <header>
+    <header class="row">
         <!-- Headline and logo -->
-        <h1>Visualization - Steam Dataset </h1>
+        <h1 class="col-sm-12">Visualization - Steam Dataset </h1>
         <Logo></Logo>
     </header>
-    <nav>
-        <div class="DNDcontainer" role="form">
+    <nav class="col-sm-2">
+        <div id="DND" >
             <form method="post" class="box">
                 <div class="box__input">
                     <svg class="box__icon" xmlns="http://www.w3.org/2000/svg" width="50" height="43" viewBox="0 0 50 43">
@@ -40,21 +41,22 @@
                         />
                     </svg>
                     <input type="file" name="files[]" id="file" class="box__file" data-multiple-caption="{count} files selected" multiple />
-                    <label for="file" ><strong>Choose a file</strong><span class="box__dragndrop"> or drag it here</span>.</label>
+                    <label for="file"><strong>Choose a file</strong><span class="box__dragndrop"></span></label>
+                    <text> or drag it here.</text>
                     <button type="submit" class="box__button">Upload</button>
                 </div>
 
                 <div class="box__uploading">Uploading&hellip;</div>
-                <div class="box__success">Done! <a href="https://css-tricks.com/examples/DragAndDropFileUploading//?" class="box__restart" role="button">Upload more?</a></div>
-                <div class="box__error">Error! <span></span>. <a href="https://css-tricks.com/examples/DragAndDropFileUploading//?" class="box__restart"
-                        role="button">Try again!</a></div>
+                <div class="box__success">Done!</div>
+                <div class="box__error">Error! <span></span>. <a class="box__restart" role="button">Try again!</a></div>
             </form>
 
         </div>
     </nav>
-    <main>
-            <div id='mapid'></div>
+    <main class="col-sm-10" >
+        <div id='mapid'></div>
     </main>
+
 </body>
 
 </html>
