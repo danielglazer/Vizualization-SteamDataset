@@ -24,7 +24,6 @@
 
     <!-- <button id="menu-toggle"> <i class="fa fa fa-th-large" ></i></button> -->
     <div id="wrapper">
-
         <!-- /#sidebar-wrapper -->
         <div id="sidebar-wrapper">
 
@@ -33,9 +32,10 @@
                     <div id="DND">
                         <form method="post" class="box">
                             <div class="box__input  text-center">
-                                <!-- <i class="fa fa-file-text" aria-hidden="true"></i> -->
-                                <!-- <strong class="box__dragndrop">Choose a file or drag it here</strong>. -->
+                                <i class="fa fa-file-text" aria-hidden="true"></i>
+                                <strong class="box__dragndrop">Choose a file or drag it here</strong>.
                                 <input type="file" name="files[]" id="file" class="box__file" data-multiple-caption="{count} files selected" multiple/>
+                                <label for="file"></label>
                                 <button type="submit" class="box__button">Upload</button>
                             </div>
 
@@ -84,14 +84,6 @@
             <div id='mapid'></div>
         </main>
         <!-- /#page-content-wrapper -->
-
-        <!-- Menu Toggle Script -->
-        <script>
-            $("#menu-toggle").click(function (e) {
-                e.preventDefault();
-                $("#wrapper").toggleClass("toggled");
-            });
-        </script>
     </div>
 </body>
 

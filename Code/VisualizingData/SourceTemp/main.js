@@ -1,14 +1,5 @@
-$(document).ready(function(){
-    $('button').click(function(){
-        $('.sidebar').toggleClass('fliph');
-    });
-   
-   
-    
- });
+'use strict';
 
- 'use strict';
- 
  // remove this if you use Modernizr 
  (function (e, t, n) {
      var r = e.querySelectorAll("html")[0];
@@ -53,7 +44,12 @@ $(document).ready(function(){
  
  // A $( document ).ready() block.
  $(document).ready(function () {
-     console.log("ready!");
+
+    // <!-- Menu Toggle Script -->
+    $("#menu-toggle").click(function (e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
  
      (function (document, window, index) {
          // feature detection for drag&drop upload
@@ -61,7 +57,6 @@ $(document).ready(function(){
              var div = document.createElement('div');
              return (('draggable' in div) || ('ondragstart' in div && 'ondrop' in div)) && 'FormData' in window && 'FileReader' in window;
          }();
- 
  
          // applying the effect for every form
          var forms = document.querySelectorAll('.box');
