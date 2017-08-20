@@ -48,7 +48,6 @@
     
     /***********************  TOP Bar ********************/
     .sidebar{ width:220px;  background-color:#000;transition: all 0.5s  ease-in-out; }
-    .bg-default{background-color:#222;}
     .sidebar ul{ list-style:none; margin:0px; padding:0px; }
     .sidebar li a,.sidebar li a.collapsed.active{ display:block; padding:8px 12px; color:#fff;border-left:0px solid #dedede;  text-decoration:none}
     .sidebar li a.active{background-color:#000;border-left:5px solid #dedede; transition: all 0.5s  ease-in-out}
