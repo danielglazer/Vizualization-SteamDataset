@@ -1,3 +1,4 @@
+'use strict';
 $(document).ready(function(){
     $('button').click(function(){
         $('.sidebar').toggleClass('fliph');
@@ -7,7 +8,6 @@ $(document).ready(function(){
     
  });
 
- 'use strict';
  
  // remove this if you use Modernizr 
  (function (e, t, n) {
@@ -295,11 +295,11 @@ $(document).ready(function(){
          console.log("info");
      }
  
-     var btnGroup = $("nav").append("<div class='btn-group-vertical' role='group'></div>");
+    //  var btnGroup = $("nav").append("<div class='btn-group-vertical' role='group'></div>");
  
-     btnGroup.append(createButton("button", "info1", "btn btn-info onTop", tempFunc));
-     btnGroup.append(createButton("button", "info2", "btn btn-info onTop", tempFunc));
-     btnGroup.append(createButton("button", "info3", "btn btn-info onTop", tempFunc));
+    //  btnGroup.append(createButton("button", "info1", "btn btn-info onTop", tempFunc));
+    //  btnGroup.append(createButton("button", "info2", "btn btn-info onTop", tempFunc));
+    //  btnGroup.append(createButton("button", "info3", "btn btn-info onTop", tempFunc));
      // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
      // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
      // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
