@@ -400,6 +400,7 @@ $(document).ready(function(){
          };
      }
  
+     // Info
      var info = L.control();
  
      info.onAdd = function (map) {
