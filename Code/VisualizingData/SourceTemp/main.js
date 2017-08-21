@@ -192,18 +192,15 @@ function isSuccess(data) {
 // 2 colors
 // 2 properties property a,b "a/b" "a*b" "operator"
 // "a+b/c+d"
-var currentProperty = "pop_est";
-function pickForCurrentProperty(d) {
-    return d.properties[currentProperty];
-}
+
 
 var dictionary = {
-    "all_num_active": "Active players worldwide",
-    "all_num_owners": "Game owners worldwide",
+    "all_num_active": "Active players worldwide", //from the current dataset
+    "all_num_owners": "Game owners worldwide", //from the current dataset
     "avg_play_time": "Average playtime worldwide",
     "continent": "Continent",
-    "country_active": "Active players in country",
-    "country_owners": "Game owners in country",
+    "country_active": "Active players in country", //from the initial dataset 
+    "country_owners": "Game owners in country", //from the initial dataset
     "economy": "Economy Group",
     "game1active_users": "Dota 2 | Active gamers",
     "game1avg_play_time": "Dota 2 | Playtime in 2 weeks",
@@ -290,33 +287,19 @@ function setUpHomeScreen() {
     //also remove all it's eventListeners
     Handler.removeAllListeners();
     //craete the nav bar Listeners
+   createNavbarListeners();
 
     var tempFunc = function () {
         console.log("hello");
         // visualize();
     }
 
-    var countriesChoropleth = $("#Countries_Choropleth");
-    Handler.addListener(countriesChoropleth[0], "click", tempFunc, false);
     //  var btnGroup = $("nav").append("<div class='btn-group-vertical' role='group'></div>");
 
     //  btnGroup.append(createButton("button", "info1", "btn btn-info onTop", tempFunc));
-    //  btnGroup.append(createButton("button", "info2", "btn btn-info onTop", tempFunc));
-    //  btnGroup.append(createButton("button", "info3", "btn btn-info onTop", tempFunc));
     // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
-    // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
-    // btnGroup.append(createButton("button", "info", "btn btn-info onTop col align-self-center", tempFunc));
-
-
 
     // <button type="button" class="btn btn-primary">Primary</button>
-    // <button type="button" class="btn btn-secondary">Secondary</button>
-    // <button type="button" class="btn btn-success">Success</button>
-    // <button type="button" class="btn btn-danger">Danger</button>
-    // <button type="button" class="btn btn-warning">Warning</button>
-    // <button type="button" class="btn btn-info">Info</button>
-    // <button type="button" class="btn btn-light">Light</button>
-    // <button type="button" class="btn btn-dark">Dark</button>
     //add button listener via Handler
 
     //then show a navbar to the user where the DNDbox was placed instead
@@ -324,12 +307,43 @@ function setUpHomeScreen() {
     //accordung to the subject that was clicked change View
 
     // according to the view visualize the data
-    visualize();
 }
-var btnText = {
-    "info": "Information",
-    "map": "ColorplathMap"
+
+function createNavbarListeners(){
+    
+    //Games
+    Handler.addListener($("#Games_Choropleth")[0], "click", choroplethGames, false);
+    Handler.addListener($("#Games_RadialAxis")[0], "click", tempFunc, false);
+    Handler.addListener($("#Games_BarChart")[0], "click", tempFunc, false);
+    Handler.addListener($("#Games_StackedBarChart")[0], "click", tempFunc, false);
+    
+    //Economy
+    Handler.addListener($("#Economy_LineGraphs")[0], "click", tempFunc, false);
+    Handler.addListener($("#Economy_RadialAxis")[0], "click", tempFunc, false);
+    Handler.addListener($("#Economy_ParallelCoordinates")[0], "click", tempFunc, false);
+    
+    //Countries
+    Handler.addListener($("#Countries_BarChart")[0], "click", tempFunc, false);
+    Handler.addListener($("#Countries_StackedBarChart")[0], "click", tempFunc, false);
+
+    //Continents
+    Handler.addListener($("#Countinents_TreeMap")[0], "click", tempFunc, false);
+    Handler.addListener($("#Countinents_Choropleth")[0], "click", tempFunc, false);
+    Handler.addListener($("#Countinents_RadialAxis")[0], "click", tempFunc, false);
+    
+    //About
+    Handler.addListener($("#About")[0], "click", tempFunc, false);
 };
+
+function choroplethGames(){
+    var parameters = {
+        "mode" : "rawdata"
+        "property":["all_num_owners"]
+    };
+    choropleth(parameters);
+}
+
+
 
 /**
 * create a Clickable element with the specified id and classes 
@@ -351,12 +365,15 @@ function createClickable(type, id, classes, onClickFunction) {
     return btn;
 };
 
+var currentProperty = "pop_est"; // pop_est/money_spent // if(division) -> split(/)  
+                                 // linked list / object / array of parameters
+var currentMode = ""; // "enum" 1. rawdata 2. division 3. category
+function pickForCurrentProperty(d) {
+    return d.properties[currentProperty];
+}
+function choropleth(parameters) {
 
-
-
-function visualize() {
-
-    $("#DND").fadeOut("slow");
+    currentProperty = parameters.property;
 
     var map = L.map('mapid');
     map.createPane('labels');
@@ -543,20 +560,19 @@ function visualize() {
 };
 
 
-//  visualize(visName, properties){
-//      switch(visName){
-//          case "BarChart" : barChart(properties);
-//      }
-//  }
-//  visualize(barchart,id)
+// function visualize(visName, properties) {
+//     switch (visName) {
+//         case "BarChart": barChart(properties);
+//     }
+// }
 
-//  barchart (propeties){
-//      clearSVG();
-//      if (properties == null){
+// barchart(propeties){
+//     clearSVG();
+//     if (properties == null) {
 
-//      }
-//      setSVG();
-//      ShowSVG();
-//  }
+//     }
+//     setSVG();
+//     ShowSVG();
+// }
 
 
