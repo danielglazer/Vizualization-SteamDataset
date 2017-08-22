@@ -41,12 +41,9 @@ var Handler = (function () {
 }());
 
 var fileData;
-
 // A $( document ).ready() block.
 $(document).ready(function () {
-
     $("#menu-toggle").popover('show');
-
     // <!-- Menu Toggle Script -->
     $("#menu-toggle").click(function (e) {
         e.preventDefault();
@@ -54,14 +51,12 @@ $(document).ready(function () {
         $("#menu-toggle").popover('dispose');
 
     });
-
     (function (document, window, index) {
         // feature detection for drag&drop upload
         var isAdvancedUpload = function () {
             var div = document.createElement('div');
             return (('draggable' in div) || ('ondragstart' in div && 'ondrop' in div)) && 'FormData' in window && 'FileReader' in window;
         }();
-
         // applying the effect for every form
         var forms = document.querySelectorAll('.box');
         Array.prototype.forEach.call(forms, function (form) {
@@ -78,19 +73,15 @@ $(document).ready(function () {
                     event.initEvent('submit', true, false);
                     form.dispatchEvent(event);
                 };
-
             // automatically submit the form on file select
             Handler.addListener(input, 'change', function (e) {
                 //  showFiles(e.target.files);
                 droppedFiles = e.target.files;
                 triggerFormSubmit();
             }, false);
-
-
             // drag&drop files if the feature is available
             if (isAdvancedUpload) {
                 form.classList.add('has-advanced-upload'); // letting the CSS part to know drag&drop is supported by the browser
-
                 ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
                     Handler.addListener(form, event, function (e) {
                         // preventing the unwanted behaviours
@@ -109,17 +100,13 @@ $(document).ready(function () {
                     Handler.addListener(form, event, function () {
                         form.classList.remove('is-dragover');
                     }, false);
-                    console.log(Handler.listeners);
                 });
                 Handler.addListener(form, 'drop', function (e) {
                     droppedFiles = e.dataTransfer.files; // the files that were dropped
                     //  showFiles(droppedFiles);
                     triggerFormSubmit();
-
                 }, false);
             }
-
-
             // if the form was submitted
             Handler.addListener(form, 'submit', function (e) {
                 // preventing the duplicate submissions if the current one is in progress
@@ -139,11 +126,9 @@ $(document).ready(function () {
                         setUpHomeScreen();
                     }
                 };
-
                 reader.readAsText(droppedFiles[0]);
                 event.preventDefault();
             }, false);
-
 
             // restart the form if has a state of error/success
             Array.prototype.forEach.call(restart, function (entry) {
@@ -153,7 +138,6 @@ $(document).ready(function () {
                     input.click();
                 }, false);
             });
-
             // Firefox focus bug fix for file input
             Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
             Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
@@ -192,8 +176,6 @@ function isSuccess(data) {
 // 2 colors
 // 2 properties property a,b "a/b" "a*b" "operator"
 // "a+b/c+d"
-
-
 var dictionary = {
     "all_num_active": "Active players worldwide", //from the current dataset
     "all_num_owners": "Game owners worldwide", //from the current dataset
@@ -287,13 +269,7 @@ function setUpHomeScreen() {
     //also remove all it's eventListeners
     Handler.removeAllListeners();
     //craete the nav bar Listeners
-   createNavbarListeners();
-
-    var tempFunc = function () {
-        console.log("hello");
-        // visualize();
-    }
-
+    createNavbarListeners();
     //  var btnGroup = $("nav").append("<div class='btn-group-vertical' role='group'></div>");
 
     //  btnGroup.append(createButton("button", "info1", "btn btn-info onTop", tempFunc));
@@ -309,41 +285,76 @@ function setUpHomeScreen() {
     // according to the view visualize the data
 }
 
-function createNavbarListeners(){
-    
+function createNavbarListeners() {
     //Games
-    Handler.addListener($("#Games_Choropleth")[0], "click", choroplethGames, false);
-    Handler.addListener($("#Games_RadialAxis")[0], "click", tempFunc, false);
-    Handler.addListener($("#Games_BarChart")[0], "click", tempFunc, false);
-    Handler.addListener($("#Games_StackedBarChart")[0], "click", tempFunc, false);
-    
+    Handler.addListener($("#Games_Choropleth")[0], "click", gamesChoropleth, false);
+    Handler.addListener($("#Games_RadialAxis")[0], "click", gamesRadialAxis, false);
+    Handler.addListener($("#Games_BarChart")[0], "click", gamesBarChart, false);
+    Handler.addListener($("#Games_StackedBarChart")[0], "click", gamesStackedBarChart, false);
     //Economy
-    Handler.addListener($("#Economy_LineGraphs")[0], "click", tempFunc, false);
-    Handler.addListener($("#Economy_RadialAxis")[0], "click", tempFunc, false);
-    Handler.addListener($("#Economy_ParallelCoordinates")[0], "click", tempFunc, false);
-    
+    Handler.addListener($("#Economy_LineGraphs")[0], "click", economyLineGraphs, false);
+    Handler.addListener($("#Economy_RadialAxis")[0], "click", economyRadialAxis, false);
+    Handler.addListener($("#Economy_ParallelCoordinates")[0], "click", economyParallelCoordinates, false);
     //Countries
-    Handler.addListener($("#Countries_BarChart")[0], "click", tempFunc, false);
-    Handler.addListener($("#Countries_StackedBarChart")[0], "click", tempFunc, false);
-
+    Handler.addListener($("#Countries_BarChart")[0], "click", countriesBarChart, false);
+    Handler.addListener($("#Countries_StackedBarChart")[0], "click", countriesStackedBarChart, false);
     //Continents
-    Handler.addListener($("#Countinents_TreeMap")[0], "click", tempFunc, false);
-    Handler.addListener($("#Countinents_Choropleth")[0], "click", tempFunc, false);
-    Handler.addListener($("#Countinents_RadialAxis")[0], "click", tempFunc, false);
-    
+    Handler.addListener($("#Continents_TreeMap")[0], "click", continentsTreeMap, false);
+    Handler.addListener($("#Continents_Choropleth")[0], "click", continentsChoropleth, false);
+    Handler.addListener($("#Continents_Choropleth")[0], "click", continentsRadialAxis, false);
     //About
-    Handler.addListener($("#About")[0], "click", tempFunc, false);
+    Handler.addListener($("#About")[0], "click", about, false);
 };
 
-function choroplethGames(){
-    var parameters = {
-        "mode" : "rawdata"
-        "property":["all_num_owners"]
-    };
-    choropleth(parameters);
+function printFunc() {
+    console.log(this);
 }
 
-
+// "Games"' Listeners Handler functions
+function gamesChoropleth() {
+    console.log(this);
+}
+function gamesRadialAxis() {
+    console.log(this);
+}
+function gamesBarChart() {
+    console.log(this);
+}
+function gamesStackedBarChart() {
+    console.log(this);
+}
+// "Economy"'s Listeners Handler functions
+function economyLineGraphs() {
+    console.log(this);
+}
+function economyRadialAxis() {
+    console.log(this);
+}
+function economyParallelCoordinates() {
+    console.log(this);
+}
+// "Countries"' Listeners Handler functions
+function countriesBarChart() {
+    console.log(this);
+    barchart({ "type": "countries", "country": "ISR" });
+}
+function countriesStackedBarChart() {
+    console.log(this);
+}
+// "Continents"' Listeners Handler functions
+function continentsTreeMap() {
+    console.log(this);
+}
+function continentsChoropleth() {
+    console.log(this);
+}
+function continentsRadialAxis() {
+    console.log(this);
+}
+// "About"'s Listener Handler function
+function about() {
+    console.log(this);
+}
 
 /**
 * create a Clickable element with the specified id and classes 
@@ -366,7 +377,7 @@ function createClickable(type, id, classes, onClickFunction) {
 };
 
 var currentProperty = "pop_est"; // pop_est/money_spent // if(division) -> split(/)  
-                                 // linked list / object / array of parameters
+// linked list / object / array of parameters
 var currentMode = ""; // "enum" 1. rawdata 2. division 3. category
 function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
@@ -559,6 +570,82 @@ function choropleth(parameters) {
     }
 };
 
+function pickForCountry() {
+
+}
+
+// can be of 
+function barchart(parameters) {
+    $("#mapid").addClass("invisible");
+    $("#barchart").removeClass("invisible");
+
+    if (parameters.type == "countries") {
+
+        var countries = d3.nest()
+            .key(function (d) { return d.properties["iso_a3"]; })
+            .entries(fileData.features);
+
+        var margin = { top: 0, right: 10, bottom: 20, left: 10 },
+            width = 960 - margin.left - margin.right,
+            height = 600 - margin.top - margin.bottom;
+
+        var index = d3.range(countries.length),
+            data = index.map(function (i) {
+                return { "key": countries[i].key, "value": countries[i].values[0].properties["game1" + "active_users"] };
+            });
+
+        var x = d3.scaleLinear()
+            .domain([0, d3.max(data, function (d) { return d.value })])
+            .range([0, width]);
+
+        console.log(x(150000));
+
+        var y = d3.scaleBand()
+            .domain(index)
+            .range([0, height]);
+
+        var svg = d3.select("#barchart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // Define the div for the tooltip
+        var div = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        var bar = svg.selectAll(".bar")
+            .data(data)
+            .enter().append("g")
+            .attr("class", "bar")
+            .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; })
+            .on("mouseover", function (d) {
+                div.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                div.html(d.key + "<br/>" + d.value)
+                    .style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY - 28) + "px");
+            })
+            .on("mouseout", function (d) {
+                div.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+
+        bar.append("rect")
+            .attr("height", y.bandwidth())
+            .attr("width", function (d) { return x(d.value) });
+
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+    }
+
+}
 
 // function visualize(visName, properties) {
 //     switch (visName) {
@@ -574,5 +661,3 @@ function choropleth(parameters) {
 //     setSVG();
 //     ShowSVG();
 // }
-
-
