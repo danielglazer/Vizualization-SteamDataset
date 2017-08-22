@@ -319,6 +319,7 @@ function gamesRadialAxis() {
 }
 function gamesBarChart() {
     console.log(this);
+    barchart({ "type": "games" });
 }
 function gamesStackedBarChart() {
     console.log(this);
@@ -577,17 +578,16 @@ function pickForCountry() {
 // can be of 
 function barchart(parameters) {
     $("#mapid").addClass("invisible");
-    $("#barchart").removeClass("invisible");
 
     if (parameters.type == "countries") {
-
+        $("#barchart").removeClass("invisible");
         var countries = d3.nest()
             .key(function (d) { return d.properties["iso_a3"]; })
             .entries(fileData.features);
 
-        var margin = { top: 0, right: 10, bottom: 20, left: 10 },
-            width = 960 - margin.left - margin.right,
-            height = 600 - margin.top - margin.bottom;
+        // var margin = { top: 0, right: 10, bottom: 20, left: 10 },
+        //     width = 100 - margin.left - margin.right,
+        //     height = 100 - margin.top - margin.bottom;
 
         var index = d3.range(countries.length),
             data = index.map(function (i) {
@@ -596,19 +596,33 @@ function barchart(parameters) {
 
         var x = d3.scaleLinear()
             .domain([0, d3.max(data, function (d) { return d.value })])
-            .range([0, width]);
+        // .range([0, width]);
 
         console.log(x(150000));
 
         var y = d3.scaleBand()
             .domain(index)
-            .range([0, height]);
+        // .range([0, height]);
 
-        var svg = d3.select("#barchart").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        var svg = d3.select("#barchart")
+            .append("div")
+            .classed("svg-container", true) //container class to make it responsive
+            .append("svg")
+            // .attr("width", "100%")
+            // .attr("height", "100%")
+            //responsive SVG needs these 2 attributes and no width and height attr
+            .attr("preserveAspectRatio", "xMinYMin meet")
+            .attr("viewBox", "0 0 600 400")
+            //class to make it responsive
+            .classed("svg-content", true);
+
+        // var svg = d3.select("#barchart").append("svg")
+        // .attr("width", "100%")
+        // .attr("height", "100%")
+        //     // .attr("width", width + margin.left + margin.right)
+        //     // .attr("height", height + margin.top + margin.bottom)
+        //     .append("g")
+        //     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         // Define the div for the tooltip
         var div = d3.select("body").append("div")
@@ -636,15 +650,82 @@ function barchart(parameters) {
 
         bar.append("rect")
             .attr("height", y.bandwidth())
+            // .attr('x', function(d) { return x(d); })
             .attr("width", function (d) { return x(d.value) });
 
 
         svg.append("g")
             .attr("class", "x axis")
-            .attr("transform", "translate(0," + height + ")")
+            // .attr("transform", "translate(0," + height + ")")
             .call(d3.axisBottom(x));
     }
 
+    if (parameters.type == "games") {
+        $("#barChartGames").removeClass("invisible");
+        var type = ["owners", "active_users", "avg_play_time"];
+        var data = [
+            new Array(10),
+            new Array(10),
+            new Array(10)
+        ];
+        for (var typeIndex = 0; typeIndex < 3; typeIndex++) {
+            for (var i = 1; i <= 10; i++) {
+                var property_name = "game" + i + type[typeIndex];
+                var total = d3.nest()
+                    .rollup(function (v) { return d3.sum(v, function (d) { return d.properties[property_name]; }); })
+                    .object(fileData.features);
+                data[typeIndex][i - 1] = total;
+            }
+        }
+
+        var barChartGames = document.getElementById("barChartGames");
+
+        var svg = d3.select(barChartGames)
+            .append("svg");
+
+        function redraw() {
+
+            // Extract the width and height that was computed by CSS.
+            var width = barChartGames.clientWidth;
+            var height = barChartGames.clientHeight;
+
+            // Use the extracted size to set the size of an SVG element.
+            svg
+                .attr("width", width)
+                .attr("height", height);
+
+            var x = d3.scaleLinear()
+                .domain([0, d3.max(data[0], function (d) { return d})]);
+
+            var y = d3.scaleBand()
+                .domain(new Array(10))
+                .range([0, height]);
+
+            console.log(y[1]);
+
+            var bar = svg.selectAll(".bar")
+                .data(data[0])
+                .enter().append("g")
+                .attr("class", "bar")
+                .attr("transform", function (d, i) {
+                    console.log(d+"|"+i+"|");
+                    console.log(y(i));
+                     return "translate(0," + y(i) + ")"; 
+                    })
+
+            bar.append("rect")
+                .attr("height", y.bandwidth())
+                .attr("width", function (d) { return x(d) });
+        }
+
+        // Draw for the first time to initialize.
+        redraw();
+
+        // Redraw based on the new size whenever the browser window is resized.
+        window.addEventListener("resize", redraw);
+
+        console.log(data);
+    }
 }
 
 // function visualize(visName, properties) {
