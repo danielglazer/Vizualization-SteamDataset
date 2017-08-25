@@ -686,8 +686,8 @@ function barchart(parameters) {
         function redraw() {
 
             // Extract the width and height that was computed by CSS.
-            var width = barChartGames.clientWidth;
-            var height = barChartGames.clientHeight;
+            var width = (barChartGames).clientWidth;
+            var height = (barChartGames).clientHeight;
 
             // Use the extracted size to set the size of an SVG element.
             svg
@@ -695,23 +695,26 @@ function barchart(parameters) {
                 .attr("height", height);
 
             var x = d3.scaleLinear()
-                .domain([0, d3.max(data[0], function (d) { return d})]);
+                .domain([0, d3.max(data[0], function (d) { return d })])
+                .range([0, width]);
+
+            var index = d3.range(data[0].length);
 
             var y = d3.scaleBand()
-                .domain(new Array(10))
+                .domain(index)
                 .range([0, height]);
 
-            console.log(y[1]);
+            console.log(y(1));
 
             var bar = svg.selectAll(".bar")
                 .data(data[0])
                 .enter().append("g")
                 .attr("class", "bar")
                 .attr("transform", function (d, i) {
-                    console.log(d+"|"+i+"|");
+                    console.log(d + "|" + i + "|");
                     console.log(y(i));
-                     return "translate(0," + y(i) + ")"; 
-                    })
+                    return "translate(0," + y(i) + ")";
+                })
 
             bar.append("rect")
                 .attr("height", y.bandwidth())

@@ -40,7 +40,7 @@ var Handler = (function () {
     };
 }());
 
-var fileData;
+var fileData; // the geojson parsed to js json
 // A $( document ).ready() block.
 $(document).ready(function () {
     $("#menu-toggle").popover('show');
@@ -177,6 +177,16 @@ function isSuccess(data) {
 // 2 properties property a,b "a/b" "a*b" "operator"
 // "a+b/c+d"
 var dictionary = {
+    "game1": "DOTA2",
+    "game2": "CS:GO",
+    "game3": "TF2",
+    "game4": "Garry's Mod",
+    "game5": "Skyrim",
+    "game6": "RUST",
+    "game7": "Civilization V",
+    "game8": "Terraria",
+    "game9": "DayZ",
+    "game10": "PAYDAY 2",
     "all_num_active": "Active players worldwide", //from the current dataset
     "all_num_owners": "Game owners worldwide", //from the current dataset
     "avg_play_time": "Average playtime worldwide",
@@ -318,7 +328,7 @@ function gamesRadialAxis() {
     console.log(this);
 }
 function gamesBarChart() {
-    console.log(this);
+    BarchartHandler.startBC({ "type": "games", "properties": ["owners"] });
 }
 function gamesStackedBarChart() {
     console.log(this);
@@ -335,8 +345,7 @@ function economyParallelCoordinates() {
 }
 // "Countries"' Listeners Handler functions
 function countriesBarChart() {
-    console.log(this);
-    barchart({ "type": "countries", "country": "ISR" });
+    BarchartHandler.startBC({ "type": "countries", "properties": ["game1owners"] });
 }
 function countriesStackedBarChart() {
     console.log(this);
@@ -532,34 +541,6 @@ function choropleth(parameters) {
     }
     legend.addTo(map);
 
-    // var propertyCtrl = L.control({ position: 'bottomleft' });
-    // propertyCtrl.onAdd = function (map) {
-    //  var div = L.DomUtil.create('div', 'info propertyCtrl');
-
-    //  var jdiv = $(div);
-    //     var form = $("<form></form>");
-
-    //     if (fileData.features.length > 1) {
-    //         var props = Object.keys(fileData.features[0].properties);
-    //         props.sort();
-
-    //         for (var i = 0; i < props.length; i++) {
-    //             var radioBtn = $('<input type="radio" name="property_"' + props[i] + '" value=' + props[i] + ' />');
-    //             radioBtn.on('change', function (e) {
-    //                 console.log(this.value);
-    //                 currentProperty = this.value;
-    //                 updateMap();
-    //             });
-    //             form.append(radioBtn);
-    //         }
-
-    //         jdiv.append(form);
-    //     }
-
-    //     return jdiv[0];
-    // }
-    // propertyCtrl.addTo(map);
-
     function updateMap() {
         regenColor();
         info.update();
@@ -574,88 +555,326 @@ function pickForCountry() {
 
 }
 
-// can be of 
-function barchart(parameters) {
-    $("#mapid").addClass("invisible");
-    $("#barchart").removeClass("invisible");
+var BarchartHandler = (function () {
+    var type = "countries";
+    var propertyParams = ["iso_a3"]; // in case of games its a suffix and 
+    var barchartHTMLElem = document.getElementById("barChart");
+    var ctrlHTMLElem;
+    var chartData = new Array();
+    var margin = { top: 10, right: 20, bottom: 20, left: 10 }
+    var tooltipdiv;
+    var width;
+    var height;
+    var svg = d3.select(barchartHTMLElem).append("svg");
+    var initiated = false;
+    var labelWidth = 0;
+    var sorted = false;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            if (type == "countries") {
+                var countries = d3.nest()
+                    .key(function (d) { return d.properties.name; })
+                    .entries(fileData.features);
 
-    if (parameters.type == "countries") {
+                var index = d3.range(countries.length);
+                chartData[0] = index.map(function (i) {
+                    return { "key": countries[i].key, "value": BarchartHandler.getProperties(countries[i].values[0]) };
+                });
+            } else if (type == "games") {
+                var types = ["owners", "active_users", "avg_play_time"];
+                var games_num = fileData.games.length;
+                var games = [new Array(games_num), new Array(games_num), new Array(games_num)];
+                for (var t = 0; t < types.length; t++) {
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[t];
+                        var key = fileData.games[i - 1].Title;
+                        if (types[t] != "avg_play_time") {
+                            var total = d3.nest()
+                                .rollup(function (v) {
+                                    var value = d3.sum(v, function (d) { return d.properties[property_name]; });
+                                    return {
+                                        "key": key,
+                                        "value": value
+                                    };
+                                })
+                                .object(fileData.features);
+                        }
+                        else {
+                            var activeUsersProperty = "game" + i + types[1];
+                            var total = d3.nest()
+                                .rollup(function (v) {
+                                    var value = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); })) / games[1][i];
+                                    return {
+                                        "key": key,
+                                        "value": value
+                                    };
+                                })
+                                .object(fileData.features);
+                        }
+                        games[t][i - 1] = total;
+                    }
+                }
+                chartData = games;
+            }
+        },
+        getData: function () {
+            var data = new Array();
+            if (type == "countries") {
+                data = chartData[0];
+            } else if (type == "games") {
+                switch (propertyParams[0]) {
+                    case 'owners': data = chartData[0]; break;
+                    case 'active_users': data = chartData[1]; break;
+                    case 'avg_play_time': data = chartData[2]; break;
+                }
+            }
+            if (sorted) {
+                data.sort(function (a, b) {
+                    return a.value - b.value;
+                });
+            }
+            return data;
+        },
+        getProperties: function (d) {
+            if (type == "countries") {
+                if (propertyParams.length > 1) {
+                    return d.properties[propertyParams[0]] / d.properties[propertyParams[1]];
+                }
+                else {
+                    return d.properties[propertyParams[0]];
+                }
+            }
+            else if (type == "games") {
+                // TODO Unused
+            }
+        },
+        getXfunc: function () {
+            var data = BarchartHandler.getData();
+            return d3.scaleLinear()
+                .domain([0, d3.max(data, function (d) { return d.value })])
+                .range([0, width - labelWidth]);
+        },
+        getYfunc: function () {
+            var index = d3.range(chartData[0].length);
+            return d3.scaleBand()
+                .domain(index)
+                .range([0, height]);
+        },
+        redraw: function () {
+            BarchartHandler.show();
+            // clear previous svg 
+            // svg.selectAll("*").remove(); // this may work
+            d3.select(barchartHTMLElem).selectAll("svg").remove();
+            // if resize happened - need to recalc 'width' and 'height'
+            width = (0.9) * ((barchartHTMLElem).clientWidth) - margin.left - margin.right;
+            height = (0.9) * ((barchartHTMLElem).clientHeight) - margin.top - margin.bottom;
+            // and recalc the X and Y functions, which depend on 'width' and 'height'
+            // position the canvas
+            svg = d3.select(barchartHTMLElem).append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            var y = BarchartHandler.getYfunc();
+            var bar = svg.selectAll(".bar")
+                .data(BarchartHandler.getData())
+                .enter().append("g");
+            bar.attr("class", "bar")
+                .attr("transform", function (d, i) {
+                    return "translate(" + margin.top + "," + y(i) + ")";
+                })
+                .on("mouseover", function (d) {
+                    tooltipdiv.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltipdiv.html(d.key + "<br/>" + numberWithCommas(d.value))
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY - 28) + "px");
+                })
+                .on("mouseout", function (d) {
+                    tooltipdiv.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+            var barHeight = y.bandwidth();
+            labelWidth = 0;
+            if (y.bandwidth() > 10) {
+                bar.append("text")
+                    .attr("y", y.bandwidth() / 2)
+                    .attr("dy", ".35em") //vertical align middle
+                    .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
+                    .style("text-align", "right")
+                    .text(function (d) {
+                        return d.key;
+                    }).each(function () {
+                        labelWidth = Math.ceil(Math.max(labelWidth, this.getBBox().width));
+                    });
+            }
+            var x = BarchartHandler.getXfunc();
+            bar.append("rect")
+                .attr("transform", "translate(" + labelWidth + ", 0)")
+                .attr("height", y.bandwidth())
+                .attr("width", function (d) { return x(d.value) });
+            if (y.bandwidth() > 10) {
+                bar.append("text")
+                    .attr("y", barHeight / 2)
+                    .attr("dx", labelWidth) //margin right
+                    .attr("dy", ".35em") //vertical align middle
+                    .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
+                    .attr("text-anchor", "end")
+                    .text(function (d) {
+                        return (numberWithCommas(d.value));
+                    })
+                    .attr("x", function (d) {
+                        var width = this.getBBox().width;
+                        return Math.max(width, x(d.value));
+                    });
+            }
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                .call(d3.axisBottom(x));
+        },
+        hide: function () {
+            if (!barchartHTMLElem.classList.contains("invisible")) {
+                barchartHTMLElem.classList.add("invisible");
+            }
+        },
+        show: function () {
+            if (barchartHTMLElem.classList.contains("invisible")) {
+                barchartHTMLElem.classList.remove("invisible");
+            }
+        },
+        attachControls: function () {
+            // control buttons attachment
+            // varies depending on the type of the barchart
 
-        var countries = d3.nest()
-            .key(function (d) { return d.properties["iso_a3"]; })
-            .entries(fileData.features);
+            ctrlHTMLElem = $("<div class='countriesControl'></div>").appendTo(barchartHTMLElem);
+            var jdiv = (ctrlHTMLElem); // holds the div to which control belongs
+            var form; // holds form element
 
-        var margin = { top: 10, right: 20, bottom: 20, left: 10 },
-            width = ($("main")[0]).clientWidth - margin.left - margin.right,
-            height = ($("main")[0]).clientHeight - margin.top - margin.bottom;
+            var sortCtrl = ($("<input type='checkbox'>"))
+                .appendTo(($("<label>Sort values</label>"))
+                    .appendTo(jdiv));
 
-        var index = d3.range(countries.length),
-            data = index.map(function (i) {
-                return { "key": countries[i].key, "value": countries[i].values[0].properties["game1" + "active_users"] };
+            if (sorted) {
+                sortCtrl.prop("checked", true);
+            }
+            // attach sort for both types
+
+            sortCtrl.on('change', function (e) {
+                if (this.checked) {
+                    sorted = true;
+                } else {
+                    sorted = false;
+                }
+                BarchartHandler.resetChartData();
+                BarchartHandler.redraw();
             });
+            // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
+            //                                      radio      radio         
+            if (type == "countries") {
+                form = $("<form id='gamesForm'></form>");
+                var gameIndex = 1; // 1-10
+                var property = "owners";
+                // games radio group
+                for (var i = 1; i <= fileData.games.length; i++) {
 
-        var x = d3.scaleLinear()
-            .domain([0, d3.max(data, function (d) { return d.value })])
-            .range([0, width]);
+                    var radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    if (i == 1) {
+                        radioBtn.prop("checked", true);
+                    }
+                    radioBtn.on('change', function (e) {
+                        gameIndex = this.value;
+                        propertyParams[0] = "game" + gameIndex + property;
+                        BarchartHandler.resetChartData();
+                        BarchartHandler.redraw();
+                    });
+                    form.append(radioBtn);
+                }
+                form.appendTo(jdiv);
+                // property handler
+                function updateProperty(e) {
+                    property = this.value;
+                    propertyParams[0] = "game" + gameIndex + property;
+                    BarchartHandler.resetChartData();
+                    BarchartHandler.redraw();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // active users to owners relation
+                // radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                // radioBtn.on('change', function (e) {
+                //     propertyParams[0] = "game" + gameIndex + "active_users";
+                //     propertyParams[1] = "game" + gameIndex + "owners";
+                // });
+                // form.append(radioBtn);  
+                form.appendTo(jdiv);
 
-        var y = d3.scaleBand()
-            .domain(index)
-            .range([0, height]);
-
-        var svg = d3.select("#barchart").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        // Define the div for the tooltip
-        var div = d3.select("body").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0);
-
-        var bar = svg.selectAll(".bar")
-            .data(data)
-            .enter().append("g")
-            .attr("class", "bar")
-            .attr("transform", function (d, i) { return "translate(0," + y(i) + ")"; })
-            .on("mouseover", function (d) {
-                div.transition()
-                    .duration(200)
-                    .style("opacity", .9);
-                div.html(d.key + "<br/>" + d.value)
-                    .style("left", (d3.event.pageX) + "px")
-                    .style("top", (d3.event.pageY - 28) + "px");
-            })
-            .on("mouseout", function (d) {
-                div.transition()
-                    .duration(500)
-                    .style("opacity", 0);
-            });
-
-        bar.append("rect")
-            .attr("height", y.bandwidth())
-            .attr("width", function (d) { return x(d.value) });
+            }
+            // if games - attach control group (owners/active/average playtime/active:owners)
+            //                                  radio
+            else if (type == "games") {
+                var property = "owners";
+                function updateProperty(e) {
+                    property = this.value;
+                    propertyParams[0] = property;
+                    BarchartHandler.resetChartData();
+                    BarchartHandler.redraw();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                form.appendTo(jdiv);
+            }
 
 
-        svg.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x));
-    }
-
-}
-
-// function visualize(visName, properties) {
-//     switch (visName) {
-//         case "BarChart": barChart(properties);
-//     }
-// }
-
-// barchart(propeties){
-//     clearSVG();
-//     if (properties == null) {
-
-//     }
-//     setSVG();
-//     ShowSVG();
-// }
+        },
+        detachControls: function () {
+            // control buttons detachment
+            $(ctrlHTMLElem).remove();
+        },
+        startBC: function (parameters) {
+            BarchartHandler.stopBC();
+            tooltipdiv = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+            type = parameters.type;
+            propertyParams = parameters.properties;
+            barchartHTMLElem = document.getElementById("barChart");
+            BarchartHandler.resetChartData();
+            BarchartHandler.redraw();
+            BarchartHandler.attachControls();
+            window.addEventListener("resize", BarchartHandler.redraw);
+        },
+        stopBC: function () {
+            window.removeEventListener("resize", BarchartHandler.redraw);
+            BarchartHandler.detachControls();
+            $(tooltipdiv).remove();
+        }
+    };
+}());

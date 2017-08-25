@@ -9,6 +9,13 @@ main {
     height: 90%;
 }
 
+#barChart {
+    margin: 0px;
+    padding: 0px;
+    width: 100%;
+    height: 70%;    
+}
+
 #header{
     width: 100%;
     height: 10%;
@@ -388,7 +395,7 @@ ul.sidebar-nav li a i.fa:hover{
 #barchart {
     position: absolute;
     height: 90%;
-    width: 100%
+    width: 100%;
 }
 
 /* <----- Leaflet Map ----->*/
@@ -429,7 +436,7 @@ div#mapid {}
 }
   
 .bar text {
-    fill: white;
+    fill: #212529;
 }
   
 .axis path, .axis line {
@@ -441,12 +448,23 @@ div#mapid {}
 div.tooltip {	
     position: absolute;			
     text-align: center;			
-    width: 60px;					
-    height: 28px;					
+    /* width: 60px;					
+    height: 28px;					 */
     padding: 2px;				
     font: 12px sans-serif;		
     background: lightsteelblue;	
     border: 0px;		
     border-radius: 8px;			
     pointer-events: none;			
+}
+
+.countriesControl {
+    position: absolute;
+    float:right;
+    top:0;
+    right:0;
+    z-index:300;
+    min-width:0;
+    width: 10%;
+    font-size: x-small;
 }
