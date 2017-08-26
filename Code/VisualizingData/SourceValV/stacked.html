@@ -22,8 +22,8 @@ label {
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script>
 
-var n = 4, // The number of series.
-    m = 5; // The number of values per series.
+var n = 3, // The number of series.
+    m = 10; // The number of values per series.
 
 // The xz array has m elements, representing the x-values shared by all series.
 // The yz array has n elements, representing the y-values of each of the n series.
@@ -44,11 +44,10 @@ var svg = d3.select("svg"),
 var x = d3.scaleBand()
     .domain(xz)
     .rangeRound([0, width])
-    .padding(0.08);
-
+    
 var y = d3.scaleLinear()
     .domain([0, y1Max])
-    .range([height, 0]);
+    .range([0, height]);
 
 var color = d3.scaleOrdinal()
     .domain(d3.range(n))
@@ -57,68 +56,19 @@ var color = d3.scaleOrdinal()
 var series = g.selectAll(".series")
   .data(y01z)
   .enter().append("g")
-    .attr("fill", function(d, i) { return color(i); });
+  .attr("fill", function(d, i) { return color(i); });
 
 var rect = series.selectAll("rect")
   .data(function(d) { return d; })
   .enter().append("rect")
-    .attr("x", function(d, i) { return x(i); })
-    .attr("y", height)
-    .attr("width", x.bandwidth())
-    .attr("height", 0);
-
-rect.transition()
-    .delay(function(d, i) { return i * 10; })
-    .attr("y", function(d) { return y(d[1]); })
-    .attr("height", function(d) { return y(d[0]) - y(d[1]); });
-
-g.append("g")
-    .attr("class", "axis axis--x")
-    .attr("transform", "translate(0," + height + ")")
-    .call(d3.axisBottom(x)
-        .tickSize(0)
-        .tickPadding(6));
-
-d3.selectAll("input")
-    .on("change", changed);
-
-var timeout = d3.timeout(function() {
-  d3.select("input[value=\"grouped\"]")
-      .property("checked", true)
-      .dispatch("change");
-}, 2000);
-
-function changed() {
-  timeout.stop();
-  if (this.value === "grouped") transitionGrouped();
-  else transitionStacked();
-}
-
-function transitionGrouped() {
-  y.domain([0, yMax]);
-
-  rect.transition()
-      .duration(500)
-      .delay(function(d, i) { return i * 10; })
-      .attr("x", function(d, i) { return x(i) + x.bandwidth() / n * this.parentNode.__data__.key; })
-      .attr("width", x.bandwidth() / n)
-    .transition()
-      .attr("y", function(d) { return y(d[1] - d[0]); })
-      .attr("height", function(d) { return y(0) - y(d[1] - d[0]); });
-}
-
-function transitionStacked() {
-  y.domain([0, y1Max]);
-
-  rect.transition()
-      .duration(500)
-      .delay(function(d, i) { return i * 10; })
-      .attr("y", function(d) { return y(d[1]); })
-      .attr("height", function(d) { return y(d[0]) - y(d[1]); })
-    .transition()
-      .attr("x", function(d, i) { return x(i); })
-      .attr("width", x.bandwidth());
-}
+//   .attr("x", function(d, i) { return x(i); })
+//   .attr("y", function(d) { return y(d[1]); })
+//   .attr("width", x.bandwidth())
+//   .attr("height", function(d) { return y(d[0]) - y(d[1]); });
+  .attr("y", function(d, i) { return x(i); })
+  .attr("x", function(d) { return y(d[0]); })
+  .attr("height", x.bandwidth())
+  .attr("width", function(d) { return y(d[1]) - y(d[0]); });
 
 // Returns an array of m psuedorandom, smoothly-varying non-negative numbers.
 // Inspired by Lee Byron’s test data generator.

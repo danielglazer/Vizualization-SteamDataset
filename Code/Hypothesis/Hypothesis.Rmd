@@ -1,0 +1,34 @@
+---
+title: "Hypothesis"
+author: "Daniel Glazer & Valentin Volovik"
+date: "August 1, 2017"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r load-packages, message = FALSE}
+library(rjson)
+library(jsonlite)
+json_data <- fromJSON(file="geojson_medium_steam.json")
+```
+
+
+The findings in this R Markdown file confirmed our hypothesis that there is a relationship between the variables listed below.
+
+- Country GDP () in US Dollars
+
+- Avreage money spent by owner on games in the steam library in US Dollars. 
+
+- The country income group
+
+
+
+```{r message = FALSE}
+
+```

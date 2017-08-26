@@ -327,7 +327,7 @@ function gamesBarChart() {
     BarchartHandler.startBC({ "type": "games", "properties": ["owners"] });
 }
 function gamesStackedBarChart() {
-    console.log(this);
+    StackedBarchartHandler.startSBC({ "type": "games", "properties": ["addiction_cat"] })
 }
 // "Economy"'s Listeners Handler functions
 function economyLineGraphs() {
@@ -562,7 +562,6 @@ var BarchartHandler = (function () {
     var width;
     var height;
     var svg = d3.select(barchartHTMLElem).append("svg");
-    var initiated = false;
     var labelWidth = 0;
     var sorted = false;
     return {
@@ -886,70 +885,43 @@ var StackedBarchartHandler = (function () {
     var width;
     var height;
     var svg = d3.select(barchartHTMLElem).append("svg");
-    var initiated = false;
     var labelWidth = 0;
     var sorted = false;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
         resetChartData: function () {
-            if (type == "countries") {
-                if(propertyParams[0] == "user_cat"){
+            if (type == "games") {
+                if (propertyParams[0] == "addiction_cat") {
                     // if the propertyParams[0] is user_cat -> stacks of casual,moderate,excessive
-                }
-                // the index of the game
-                if(propertyParams[1] == 0){
-
-                }
-                else {
-                    // suppo
-                    var gameIndex = propertyParams[1];
-                }
-                var keys_suffixes = ["casual_users","moderate_users","excessive_users"];
-                
-
-                var countries = d3.nest()
-                    .key(function (d) { return d.properties.name; })
-                    .entries(fileData.features);
-
-                var index = d3.range(countries.length);
-                chartData[0] = index.map(function (i) {
-                    return { "key": countries[i].key, "value": StackedBarchartHandler.getProperties(countries[i].values[0]) };
-                });
-            } else if (type == "games") {
-                var types = ["owners", "active_users", "avg_play_time"];
-                var games_num = fileData.games.length;
-                var games = [new Array(games_num), new Array(games_num), new Array(games_num)];
-                for (var t = 0; t < types.length; t++) {
-                    for (var i = 1; i <= games_num; i++) {
-                        var property_name = "game" + i + types[t];
-                        var key = fileData.games[i - 1].Title;
-                        if (types[t] != "avg_play_time") {
+                    // the index of the game
+                    var types = ["casual_users", "moderate_users", "excessive_users"];
+                    var games_num = fileData.games.length;
+                    var games = [new Array(games_num), new Array(games_num), new Array(games_num)];
+                    for (var t = 0; t < types.length; t++) {
+                        for (var i = 1; i <= games_num; i++) {
+                            var property_name = "game" + i + types[t];
                             var total = d3.nest()
                                 .rollup(function (v) {
-                                    var value = d3.sum(v, function (d) { return d.properties[property_name]; });
-                                    return {
-                                        "key": key,
-                                        "value": value
-                                    };
+                                    var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
+                                    return value;
                                 })
                                 .object(fileData.features);
+                            games[t][i - 1] = total;
                         }
-                        else {
-                            var activeUsersProperty = "game" + i + types[1];
-                            var total = d3.nest()
-                                .rollup(function (v) {
-                                    var value = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); })) / games[1][i];
-                                    return {
-                                        "key": key,
-                                        "value": value
-                                    };
-                                })
-                                .object(fileData.features);
-                        }
-                        games[t][i - 1] = total;
                     }
+                    var type_length = types.length
+                    var xz = d3.range(games_num),
+                        yz = games,
+                        y01z = d3.stack().keys(d3.range(type_length))(d3.transpose(yz)),
+                        y1Max = d3.max(y01z, function (y) { return d3.max(y, function (d) { return d[1]; }); });
+
+                    chartData = y01z;
+
+                } else if (propertyParams[0] == "aoRelation") {
+
                 }
-                chartData = games;
+            } else if (type == "countries"){
+                
             }
         },
         getData: function () {
@@ -994,12 +966,7 @@ var StackedBarchartHandler = (function () {
             return d3.scaleBand()
                 .domain(index)
                 .range([0, height]);
-        },
-        getZfunc: function () {
-            d3.scaleOrdinal()
-                .range(["#0000ff", "#00ff00", "#ff0000"]);
-            // blue, green, red
-        },
+        },  
         redraw: function () {
             StackedBarchartHandler.show();
             // clear previous svg 
