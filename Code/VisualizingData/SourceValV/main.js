@@ -127,7 +127,7 @@ $(document).ready(function () {
                     }
                 };
                 reader.readAsText(droppedFiles[0]);
-                event.preventDefault();
+                e.preventDefault();
             }, false);
 
             // restart the form if has a state of error/success
@@ -187,6 +187,16 @@ var dictionary = {
     "game8": "Terraria",
     "game9": "DayZ",
     "game10": "PAYDAY 2",
+    "game1owners_na": "Dota 2 | Owners (not-active)",
+    "game2owners_na": "Counter-Strike: Global Offensive | Owners (not-active)",
+    "game3owners_na": "Team Fortress 2 | Owners (not-active)",
+    "game4owners_na": "Garry's Mod | Owners (not-active)",
+    "game5owners_na": "Skyrim | Owners (not-active)",
+    "game6owners_na": "Rust | Owners (not-active)",
+    "game7owners_na": "Sid Meier\'s Civilization® V | Owners (not-active)",
+    "game8owners_na": "Terraria | Owners (not-active)",
+    "game9owners_na": "DayZ | Owners (not-active)",
+    "game10owners_na": "PAYDAY 2 | Owners (not-active)",
     "all_num_active": "Active players worldwide", //from the current dataset
     "all_num_owners": "Game owners worldwide", //from the current dataset
     "avg_play_time": "Average playtime worldwide",
@@ -272,6 +282,24 @@ function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+function numberAsPercent(x) {
+    return "" + (Math.round(x * 1000)) / 10 + "%";
+}
+
+function getTime(minutes) {
+    return Math.floor(minutes / 60) + " : " + (minutes % 60);
+}
+
+function transposeArray(array) {
+    var newArray = array[0].map(function (col, i) {
+        return array.map(function (row) {
+            return row[i]
+        })
+    });
+
+    return newArray;
+}
+
 function setUpHomeScreen() {
     // first set up the screen and hide the DNDbox 
     $("#DND").fadeOut("slow");
@@ -324,9 +352,11 @@ function gamesRadialAxis() {
     console.log(this);
 }
 function gamesBarChart() {
+    stopHandlers();
     BarchartHandler.startBC({ "type": "games", "properties": ["owners"] });
 }
 function gamesStackedBarChart() {
+    stopHandlers();
     StackedBarchartHandler.startSBC({ "type": "games", "properties": ["addiction_cat"] })
 }
 // "Economy"'s Listeners Handler functions
@@ -341,10 +371,12 @@ function economyParallelCoordinates() {
 }
 // "Countries"' Listeners Handler functions
 function countriesBarChart() {
+    stopHandlers();
     BarchartHandler.startBC({ "type": "countries", "properties": ["game1owners"] });
 }
 function countriesStackedBarChart() {
-    StackedBarchartHandler.startSBC({ "type": "countries", "properties": ["game1owners"] });
+    stopHandlers();
+    StackedBarchartHandler.startSBC({ "type": "countries", "properties": ["addiction_cat", "1"] });
 }
 // "Continents"' Listeners Handler functions
 function continentsTreeMap() {
@@ -359,6 +391,10 @@ function continentsRadialAxis() {
 // "About"'s Listener Handler function
 function about() {
     console.log(this);
+}
+function stopHandlers() {
+    BarchartHandler.stopBC();
+    StackedBarchartHandler.stopSBC();
 }
 
 /**
@@ -552,8 +588,8 @@ function pickForCountry() {
 }
 
 var BarchartHandler = (function () {
-    var type = "countries";
-    var propertyParams = ["iso_a3"]; // in case of games its a suffix and 
+    var type;
+    var propertyParams; // in case of games its a suffix and 
     var barchartHTMLElem = document.getElementById("barChart");
     var ctrlHTMLElem;
     var chartData = new Array();
@@ -564,6 +600,8 @@ var BarchartHandler = (function () {
     var svg = d3.select(barchartHTMLElem).append("svg");
     var labelWidth = 0;
     var sorted = false;
+    var fixedBarHeight = false;
+    var propertyMax = -1;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
         resetChartData: function () {
@@ -576,6 +614,12 @@ var BarchartHandler = (function () {
                 chartData[0] = index.map(function (i) {
                     return { "key": countries[i].key, "value": BarchartHandler.getProperties(countries[i].values[0]) };
                 });
+                // property is "game"[i]"property"
+                for (var i = 0; i < fileData.games.length; i++) {
+                    // var propertyName = str.propertyParams[0];
+                    // d3.max(data, function (d) { return d.value })
+                }
+                propertyMax = 0;
             } else if (type == "games") {
                 var types = ["owners", "active_users", "avg_play_time"];
                 var games_num = fileData.games.length;
@@ -599,10 +643,11 @@ var BarchartHandler = (function () {
                             var activeUsersProperty = "game" + i + types[1];
                             var total = d3.nest()
                                 .rollup(function (v) {
-                                    var value = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); })) / games[1][i];
+                                    var dividend = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); }));
+                                    var divisor = games[1][i - 1]["value"];
                                     return {
                                         "key": key,
-                                        "value": value
+                                        "value": Math.floor(dividend / divisor)
                                     };
                                 })
                                 .object(fileData.features);
@@ -628,12 +673,28 @@ var BarchartHandler = (function () {
                 data.sort(function (a, b) {
                     return a.value - b.value;
                 });
+            } else {
+                data.sort(function (a, b) {
+                    var keyA = a.key.toUpperCase(); // ignore upper and lowercase
+                    var keyB = b.key.toUpperCase(); // ignore upper and lowercase
+                    if (keyA < keyB) {
+                        return -1;
+                    }
+                    if (keyA > keyB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                });
             }
             return data;
         },
         getProperties: function (d) {
             if (type == "countries") {
                 if (propertyParams.length > 1) {
+                    if (d.properties[propertyParams[1]] == 0) {
+                        return 0;
+                    }
                     return d.properties[propertyParams[0]] / d.properties[propertyParams[1]];
                 }
                 else {
@@ -646,6 +707,11 @@ var BarchartHandler = (function () {
         },
         getXfunc: function () {
             var data = BarchartHandler.getData();
+            if (propertyParams.length == 2) {
+                return d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([0, width - labelWidth]);
+            }
             return d3.scaleLinear()
                 .domain([0, d3.max(data, function (d) { return d.value })])
                 .range([0, width - labelWidth]);
@@ -654,7 +720,8 @@ var BarchartHandler = (function () {
             var index = d3.range(chartData[0].length);
             return d3.scaleBand()
                 .domain(index)
-                .range([0, height]);
+                .range([0, height])
+                .padding(.1);;
         },
         redraw: function () {
             BarchartHandler.show();
@@ -663,7 +730,12 @@ var BarchartHandler = (function () {
             d3.select(barchartHTMLElem).selectAll("svg").remove();
             // if resize happened - need to recalc 'width' and 'height'
             width = (0.9) * ((barchartHTMLElem).clientWidth) - margin.left - margin.right;
-            height = (0.9) * ((barchartHTMLElem).clientHeight) - margin.top - margin.bottom;
+            if (fixedBarHeight) {
+                height = (15 * (BarchartHandler.getData().length)) - margin.top - margin.bottom;
+            }
+            else {
+                height = ((barchartHTMLElem).clientHeight) - margin.top - margin.bottom;
+            }
             // and recalc the X and Y functions, which depend on 'width' and 'height'
             // position the canvas
             svg = d3.select(barchartHTMLElem).append("svg")
@@ -679,19 +751,54 @@ var BarchartHandler = (function () {
                 .attr("transform", function (d, i) {
                     return "translate(" + margin.top + "," + y(i) + ")";
                 })
-                .on("mouseover", function (d) {
-                    tooltipdiv.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    tooltipdiv.html(d.key + "<br/>" + numberWithCommas(d.value))
-                        .style("left", (d3.event.pageX) + "px")
-                        .style("top", (d3.event.pageY - 28) + "px");
-                })
-                .on("mouseout", function (d) {
-                    tooltipdiv.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                });
+
+            if (propertyParams[0] == "avg_play_time") {
+                bar
+                    .on("mouseover", function (d) {
+                        tooltipdiv.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltipdiv.html(d.key + "<br/>" + getTime(d.value))
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        tooltipdiv.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            }
+            else if (propertyParams.length == 2) {
+                bar
+                    .on("mouseover", function (d) {
+                        tooltipdiv.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltipdiv.html(d.key + "<br/>" + numberAsPercent(d.value))
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        tooltipdiv.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            } else {
+                bar
+                    .on("mouseover", function (d) {
+                        tooltipdiv.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltipdiv.html(d.key + "<br/>" + numberWithCommas(d.value))
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        tooltipdiv.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            }
             var barHeight = y.bandwidth();
             labelWidth = 0;
             if (y.bandwidth() > 10) {
@@ -719,6 +826,10 @@ var BarchartHandler = (function () {
                     .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
                     .attr("text-anchor", "end")
                     .text(function (d) {
+                        // case of fraction :
+                        if (propertyParams.length == 2) {
+                            return (numberAsPercent(d.value));
+                        }
                         return (numberWithCommas(d.value));
                     })
                     .attr("x", function (d) {
@@ -732,13 +843,19 @@ var BarchartHandler = (function () {
                 .call(d3.axisBottom(x));
         },
         hide: function () {
-            if (!barchartHTMLElem.classList.contains("invisible")) {
-                barchartHTMLElem.classList.add("invisible");
+            d3.select(barchartHTMLElem).selectAll("svg").remove();
+
+            if (barchartHTMLElem != null) {
+                if (!barchartHTMLElem.classList.contains("invisible")) {
+                    barchartHTMLElem.classList.add("invisible");
+                }
             }
         },
         show: function () {
-            if (barchartHTMLElem.classList.contains("invisible")) {
-                barchartHTMLElem.classList.remove("invisible");
+            if (barchartHTMLElem != null) {
+                if (barchartHTMLElem.classList.contains("invisible")) {
+                    barchartHTMLElem.classList.remove("invisible");
+                }
             }
         },
         attachControls: function () {
@@ -748,7 +865,7 @@ var BarchartHandler = (function () {
             ctrlHTMLElem = $("<div class='countriesControl'></div>").appendTo(barchartHTMLElem);
             var jdiv = (ctrlHTMLElem); // holds the div to which control belongs
             var form; // holds form element
-
+            var radioBtn;
             var sortCtrl = ($("<input type='checkbox'>"))
                 .appendTo(($("<label>Sort values</label>"))
                     .appendTo(jdiv));
@@ -767,6 +884,21 @@ var BarchartHandler = (function () {
                 BarchartHandler.resetChartData();
                 BarchartHandler.redraw();
             });
+
+            var fixedBarHeightCtrl = ($("<input type='checkbox'>"))
+                .appendTo(($("<label>Fixed bar size</label>"))
+                    .appendTo(jdiv));
+
+            fixedBarHeightCtrl.on('click', function (e) {
+                if (this.checked) {
+                    fixedBarHeight = true;
+                } else {
+                    fixedBarHeight = false;
+                }
+                BarchartHandler.resetChartData();
+                BarchartHandler.redraw();
+            });
+
             // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
             //                                      radio      radio         
             if (type == "countries") {
@@ -776,13 +908,17 @@ var BarchartHandler = (function () {
                 // games radio group
                 for (var i = 1; i <= fileData.games.length; i++) {
 
-                    var radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
                     if (i == 1) {
                         radioBtn.prop("checked", true);
                     }
                     radioBtn.on('change', function (e) {
                         gameIndex = this.value;
                         propertyParams[0] = "game" + gameIndex + property;
+                        if (propertyParams.length == 2) {
+                            propertyParams[0] = "game" + gameIndex + "active_users";
+                            propertyParams[1] = "game" + gameIndex + "owners";
+                        }
                         BarchartHandler.resetChartData();
                         BarchartHandler.redraw();
                     });
@@ -793,6 +929,7 @@ var BarchartHandler = (function () {
                 function updateProperty(e) {
                     property = this.value;
                     propertyParams[0] = "game" + gameIndex + property;
+                    propertyParams.splice(1, 1);
                     BarchartHandler.resetChartData();
                     BarchartHandler.redraw();
                 }
@@ -811,12 +948,14 @@ var BarchartHandler = (function () {
                 radioBtn.on('change', updateProperty);
                 form.append(radioBtn);
                 // active users to owners relation
-                // radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
-                // radioBtn.on('change', function (e) {
-                //     propertyParams[0] = "game" + gameIndex + "active_users";
-                //     propertyParams[1] = "game" + gameIndex + "owners";
-                // });
-                // form.append(radioBtn);  
+                radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                radioBtn.on('change', function (e) {
+                    propertyParams[0] = "game" + gameIndex + "active_users";
+                    propertyParams[1] = "game" + gameIndex + "owners";
+                    BarchartHandler.resetChartData();
+                    BarchartHandler.redraw();
+                });
+                form.append(radioBtn);
                 form.appendTo(jdiv);
 
             }
@@ -854,7 +993,6 @@ var BarchartHandler = (function () {
             $(ctrlHTMLElem).remove();
         },
         startBC: function (parameters) {
-            BarchartHandler.stopBC();
             tooltipdiv = d3.select("body").append("div")
                 .attr("class", "tooltip")
                 .style("opacity", 0);
@@ -868,15 +1006,16 @@ var BarchartHandler = (function () {
         },
         stopBC: function () {
             window.removeEventListener("resize", BarchartHandler.redraw);
+            BarchartHandler.hide();
             BarchartHandler.detachControls();
-            $(tooltipdiv).remove();
+            $(".tooltip").remove();
         }
     };
 }());
 
 var StackedBarchartHandler = (function () {
-    var type = "countries";
-    var propertyParams = ["iso_a3"]; // in case of games its a suffix and 
+    var type;
+    var propertyParams; // in case of games its a suffix and 
     var barchartHTMLElem = document.getElementById("stackedBarChart");
     var ctrlHTMLElem;
     var chartData = new Array(); // casual, moderate, excessive for example
@@ -886,10 +1025,13 @@ var StackedBarchartHandler = (function () {
     var height;
     var svg = d3.select(barchartHTMLElem).append("svg");
     var labelWidth = 0;
+    var percent = false;
+    var fixedBarHeight = false;
     var sorted = false;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
         resetChartData: function () {
+            chartData = [];
             if (type == "games") {
                 if (propertyParams[0] == "addiction_cat") {
                     // if the propertyParams[0] is user_cat -> stacks of casual,moderate,excessive
@@ -898,6 +1040,7 @@ var StackedBarchartHandler = (function () {
                     var games_num = fileData.games.length;
                     var games = [new Array(games_num), new Array(games_num), new Array(games_num)];
                     for (var t = 0; t < types.length; t++) {
+                        chartData[t] = [];
                         for (var i = 1; i <= games_num; i++) {
                             var property_name = "game" + i + types[t];
                             var total = d3.nest()
@@ -907,66 +1050,285 @@ var StackedBarchartHandler = (function () {
                                 })
                                 .object(fileData.features);
                             games[t][i - 1] = total;
+                            chartData[t][i - 1] = { "key": property_name, "value": "" };
                         }
                     }
-                    var type_length = types.length
-                    var xz = d3.range(games_num),
-                        yz = games,
-                        y01z = d3.stack().keys(d3.range(type_length))(d3.transpose(yz)),
-                        y1Max = d3.max(y01z, function (y) { return d3.max(y, function (d) { return d[1]; }); });
-
-                    chartData = y01z;
+                    // labels
+                    chartData[types.length] = new Array(games_num);
+                    for (var i = 1; i <= games_num; i++) {
+                        chartData[types.length][i - 1] = { "key": dictionary["game" + i], "value": null };
+                    }
+                    // percent case
+                    if (percent) {
+                        // 3 * 10 (3 cats. 10 games for example)
+                        for (var j = 0; j < games[0].length; j++) {
+                            var sum = 0, difference = 0;
+                            for (var i = 0; i < games.length; i++) {
+                                sum += games[i][j];
+                            }
+                            for (var i = 0; i < games.length; i++) {
+                                if (sum == 0)
+                                    games[i][j] = 0;
+                                games[i][j] = games[i][j] / sum; // percent value
+                            }
+                        }
+                    }
+                    var xz = d3.range(games_num);
+                    games = d3.stack().keys(d3.range(types.length))(d3.transpose(games));
+                    // after the stack is done
+                    // migrate derived series to chartData
+                    for (var t = 0; t < types.length; t++) {
+                        for (var i = 1; i <= games_num; i++) {
+                            chartData[t][i - 1].key = dictionary[chartData[t][i - 1].key];
+                            chartData[t][i - 1].value = games[t][i - 1];
+                        }
+                    }
 
                 } else if (propertyParams[0] == "aoRelation") {
+                    var types = ["owners", "active_users"];
+                    var games_num = fileData.games.length;
+                    var games = [new Array(games_num), new Array(games_num)];
+                    // reverse order because of the 
+                    // all the active
+                    chartData[1] = [];
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[1];
+                        var total = d3.nest()
+                            .rollup(function (v) {
+                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
+                                return value;
+                            })
+                            .object(fileData.features);
+                        games[1][i - 1] = total;
+                        chartData[1][i - 1] = { "key": property_name, "value": "" };
+                    }
+                    // all the non-active (for stacking purposes)
+                    chartData[0] = [];
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[0];
+                        var total = d3.nest()
+                            .rollup(function (v) {
+                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
+                                return value;
+                            })
+                            .object(fileData.features);
+                        games[0][i - 1] = total - games[1][i - 1];
+                        chartData[0][i - 1] = { "key": property_name + "_na", "value": "" };
+                    }
+                    // difference for stacking
+                    for (var i = 1; i <= games_num; i++) {
+                        games[0][i - 1] -= games[1][i - 1];
+                    }
+
+                    // labels
+                    chartData[types.length] = new Array(games_num);
+                    for (var i = 1; i <= games_num; i++) {
+                        chartData[types.length][i - 1] = { "key": dictionary["game" + i], "value": null };
+                    }
+                    // percent case
+                    if (percent) {
+                        // 3 * 10 (3 cats. 10 games for example)
+                        for (var j = 0; j < games[0].length; j++) {
+                            var sum = 0, difference = 0;
+                            for (var i = 0; i < games.length; i++) {
+                                sum += games[i][j];
+                            }
+                            for (var i = 0; i < games.length; i++) {
+                                if (sum == 0)
+                                    games[i][j] = 0;
+                                games[i][j] = games[i][j] / sum; // percent value
+                            }
+                        }
+                    }
+                    var xz = d3.range(games_num);
+                    games = d3.stack().keys(d3.range(types.length))(d3.transpose(games));
+                    // after the stack is done
+                    // migrate derived series to chartData
+                    for (var t = 0; t < types.length; t++) {
+                        for (var i = 1; i <= games_num; i++) {
+                            chartData[t][i - 1].key = dictionary[chartData[t][i - 1].key];
+                            chartData[t][i - 1].value = games[t][i - 1];
+                        }
+                    }
 
                 }
-            } else if (type == "countries"){
-                
-            }
-        },
-        getData: function () {
-            var data = new Array();
-            if (type == "countries") {
-                data = chartData[0];
-            } else if (type == "games") {
-                switch (propertyParams[0]) {
-                    case 'owners': data = chartData[0]; break;
-                    case 'active_users': data = chartData[1]; break;
-                    case 'avg_play_time': data = chartData[2]; break;
+            } else if (type == "countries") {
+                if (propertyParams[0] == "addiction_cat") {
+                    // if the propertyParams[0] is user_cat -> stacks of casual,moderate,excessive
+                    // the index of the game
+                    var types = ["casual_users", "moderate_users", "excessive_users"];
+                    var countries_num = fileData.features.length;
+                    var countries = [new Array(countries_num), new Array(countries_num), new Array(countries_num)];
+                    var features = d3.nest()
+                        .key(function (d) { return d.properties.name; })
+                        .entries(fileData.features);
+                    for (var t = 0; t < types.length; t++) {
+                        chartData[t] = new Array(countries_num);
+
+                        var property = "game" + propertyParams[1] + types[t];
+                        var index = d3.range(countries_num);
+                        countries[t] = index.map(function (i) {
+                            return features[i].values[0].properties[property];
+                        });
+                        for (var i = 0; i < countries_num; chartData[t][i++] = { "key": property, "value": "" });
+
+                        // property is "game"[i]"property"
+                        for (var i = 0; i < fileData.games.length; i++) {
+                            // var propertyName = str.propertyParams[0];
+                            // d3.max(data, function (d) { return d.value })
+                        }
+                    }
+                    // labels
+                    chartData[types.length] = new Array(countries_num);
+                    for (var i = 0; i < features.length; i++) {
+                        chartData[types.length][i] = { "key": features[i].key };
+                    }
+                    // percent case
+                    if (percent) {
+                        // 3 * 10 (3 cats. 10 games for example)
+                        for (var j = 0; j < countries[0].length; j++) {
+                            var sum = 0, difference = 0;
+                            for (var i = 0; i < countries.length; i++) {
+                                sum += countries[i][j];
+                            }
+                            for (var i = 0; i < countries.length; i++) {
+                                if (sum == 0)
+                                    countries[i][j] = 0;
+                                countries[i][j] = countries[i][j] / sum; // percent value
+                            }
+                        }
+                    }
+                    var xz = d3.range(countries_num);
+                    countries = d3.stack().keys(d3.range(types.length))(d3.transpose(countries));
+                    // after the stack is done
+                    // migrate derived series to chartData
+                    for (var t = 0; t < types.length; t++) {
+                        for (var i = 0; i < countries_num; i++) {
+                            chartData[t][i].key = chartData[types.length][i].key + "<br>" + dictionary[chartData[t][i].key];
+                            chartData[t][i].value = countries[t][i];
+                        }
+                    }
+
+                } else if (propertyParams[0] == "aoRelation") {
+                    var types = ["owners", "active_users"];
+                    var games_num = fileData.games.length;
+                    var games = [new Array(games_num), new Array(games_num)];
+                    // reverse order because of the 
+                    // all the active
+                    chartData[1] = [];
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[1];
+                        var total = d3.nest()
+                            .rollup(function (v) {
+                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
+                                return value;
+                            })
+                            .object(fileData.features);
+                        games[1][i - 1] = total;
+                        chartData[1][i - 1] = { "key": property_name, "value": "" };
+                    }
+                    // all the non-active (for stacking purposes)
+                    chartData[0] = [];
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[0];
+                        var total = d3.nest()
+                            .rollup(function (v) {
+                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
+                                return value;
+                            })
+                            .object(fileData.features);
+                        games[0][i - 1] = total - games[1][i - 1];
+                        chartData[0][i - 1] = { "key": property_name + "_na", "value": "" };
+                    }
+                    // difference for stacking
+                    for (var i = 1; i <= games_num; i++) {
+                        games[0][i - 1] -= games[1][i - 1];
+                    }
+
+                    // labels
+                    chartData[types.length] = new Array(games_num);
+                    for (var i = 1; i <= games_num; i++) {
+                        chartData[types.length][i - 1] = { "key": dictionary["game" + i], "value": null };
+                    }
+                    // percent case
+                    if (percent) {
+                        // 3 * 10 (3 cats. 10 games for example)
+                        for (var j = 0; j < games[0].length; j++) {
+                            var sum = 0, difference = 0;
+                            for (var i = 0; i < games.length; i++) {
+                                sum += games[i][j];
+                            }
+                            for (var i = 0; i < games.length; i++) {
+                                if (sum == 0)
+                                    games[i][j] = 0;
+                                games[i][j] = games[i][j] / sum; // percent value
+                            }
+                        }
+                    }
+                    var xz = d3.range(games_num);
+                    games = d3.stack().keys(d3.range(types.length))(d3.transpose(games));
+                    // after the stack is done
+                    // migrate derived series to chartData
+                    for (var t = 0; t < types.length; t++) {
+                        for (var i = 1; i <= games_num; i++) {
+                            chartData[t][i - 1].value = games[t][i - 1];
+                        }
+                    }
+
                 }
             }
+
+            var transposedChartData = transposeArray(chartData);
             if (sorted) {
-                data.sort(function (a, b) {
-                    return a.value - b.value;
+                transposedChartData.sort(function (a, b) {
+                    var valueA = a[types.length - 1].value[1]; // ignore upper and lowercase
+                    var valueB = b[types.length - 1].value[1]; // ignore upper and lowercase
+                    return valueA - valueB;
                 });
             }
+            else {
+                transposedChartData.sort(function (a, b) {
+                    var keyA = a[types.length].key.toUpperCase(); // ignore upper and lowercase
+                    var keyB = b[types.length].key.toUpperCase(); // ignore upper and lowercase
+                    if (keyA < keyB) {
+                        return -1;
+                    }
+                    if (keyA > keyB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                });
+            }
+            chartData = transposeArray(transposedChartData);
+        },
+        getData: function () {
+            // the last arrays of chartData is labels
+            var data = chartData.slice(0, (chartData.length - 1));
             return data;
         },
-        getProperties: function (d) {
-            if (type == "countries") {
-                if (propertyParams.length > 1) {
-                    return d.properties[propertyParams[0]] / d.properties[propertyParams[1]];
-                }
-                else {
-                    return d.properties[propertyParams[0]];
-                }
-            }
-            else if (type == "games") {
-                // TODO Unused
-            }
+        getLabels: function () {
+            var labels = chartData[chartData.length - 1];
+            return labels;
         },
         getXfunc: function () {
             var data = StackedBarchartHandler.getData();
+            if (percent) {
+                return d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([0, width - labelWidth]);
+            }
             return d3.scaleLinear()
-                .domain([0, d3.max(data, function (d) { return d.value })])
+                .domain([0, d3.max(data, function (y) { return d3.max(y, function (d) { return d.value[1]; }); })])
                 .range([0, width - labelWidth]);
         },
         getYfunc: function () {
-            var index = d3.range(chartData[0].length);
+            var index = d3.range(StackedBarchartHandler.getData()[0].length);
             return d3.scaleBand()
                 .domain(index)
-                .range([0, height]);
-        },  
+                .range([0, height])
+                .padding(.1);
+        },
         redraw: function () {
             StackedBarchartHandler.show();
             // clear previous svg 
@@ -974,7 +1336,12 @@ var StackedBarchartHandler = (function () {
             d3.select(barchartHTMLElem).selectAll("svg").remove();
             // if resize happened - need to recalc 'width' and 'height'
             width = (0.9) * ((barchartHTMLElem).clientWidth) - margin.left - margin.right;
-            height = (0.9) * ((barchartHTMLElem).clientHeight) - margin.top - margin.bottom;
+            if (fixedBarHeight) {
+                height = (15 * (StackedBarchartHandler.getData()[0].length)) - margin.top - margin.bottom;
+            }
+            else {
+                height = ((barchartHTMLElem).clientHeight) - margin.top - margin.bottom;
+            }
             // and recalc the X and Y functions, which depend on 'width' and 'height'
             // position the canvas
             svg = d3.select(barchartHTMLElem).append("svg")
@@ -983,31 +1350,22 @@ var StackedBarchartHandler = (function () {
                 .append("g")
                 .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
             var y = StackedBarchartHandler.getYfunc();
-            var bar = svg.selectAll(".bar")
-                .data(StackedBarchartHandler.getData())
-                .enter().append("g");
-            bar.attr("class", "bar")
-                .attr("transform", function (d, i) {
-                    return "translate(" + margin.top + "," + y(i) + ")";
-                })
-                .on("mouseover", function (d) {
-                    tooltipdiv.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    tooltipdiv.html(d.key + "<br/>" + numberWithCommas(d.value))
-                        .style("left", (d3.event.pageX) + "px")
-                        .style("top", (d3.event.pageY - 28) + "px");
-                })
-                .on("mouseout", function (d) {
-                    tooltipdiv.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                });
-            var barHeight = y.bandwidth();
+            var x = StackedBarchartHandler.getXfunc();
+
+            var color = d3.scaleOrdinal()
+                .domain(d3.range(chartData.length))
+                .range(["#ffeda0", "#feb24c", "#f03b20"]);
+
+
             labelWidth = 0;
             if (y.bandwidth() > 10) {
-                bar.append("text")
-                    .attr("y", y.bandwidth() / 2)
+                var labels = svg
+                    .append("g")
+                    .selectAll()
+                    .attr("class", "labels")
+                    .data(StackedBarchartHandler.getLabels())
+                    .enter().append("text")
+                    .attr("y", function (d, i) { return (y(i)) + y.bandwidth() / 2 })
                     .attr("dy", ".35em") //vertical align middle
                     .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
                     .style("text-align", "right")
@@ -1017,39 +1375,61 @@ var StackedBarchartHandler = (function () {
                         labelWidth = Math.ceil(Math.max(labelWidth, this.getBBox().width));
                     });
             }
-            var x = StackedBarchartHandler.getXfunc();
-            bar.append("rect")
-                .attr("transform", "translate(" + labelWidth + ", 0)")
+            x = StackedBarchartHandler.getXfunc();
+
+            var series = svg
+                .append("g")
+                .attr("transform", "translate(" + labelWidth + ",0)")
+                .selectAll(".series")
+                .data(StackedBarchartHandler.getData())
+                .enter().append("g")
+                .attr("fill", function (d, i) { return color(i); });
+
+            var rect = series.selectAll("rect")
+                .data(function (d) { return d; })
+                .enter().append("rect")
+                .attr("y", function (d, i) { return y(i); })
+                .attr("x", function (d) { return x(d.value[0]); })
                 .attr("height", y.bandwidth())
-                .attr("width", function (d) { return x(d.value) });
-            if (y.bandwidth() > 10) {
-                bar.append("text")
-                    .attr("y", barHeight / 2)
-                    .attr("dx", labelWidth) //margin right
-                    .attr("dy", ".35em") //vertical align middle
-                    .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
-                    .attr("text-anchor", "end")
-                    .text(function (d) {
-                        return (numberWithCommas(d.value));
-                    })
-                    .attr("x", function (d) {
-                        var width = this.getBBox().width;
-                        return Math.max(width, x(d.value));
-                    });
-            }
+                .attr("width", function (d) { return x(d.value[1]) - x(d.value[0]); })
+                .on("mouseover", function (d) {
+                    tooltipdiv.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltipdiv.html(d.key + "<br/>" +
+                        (percent
+                            ? numberAsPercent((d.value[1] - d.value[0]))
+                            : numberWithCommas(d.value[1] - d.value[0])))
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY - 28) + "px");
+                })
+                .on("mouseout", function (d) {
+                    tooltipdiv.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+            var barHeight = y.bandwidth();
+
             svg.append("g")
                 .attr("class", "x axis")
-                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                .attr("transform", "translate(" + (labelWidth) + "," + (height) + ")")
                 .call(d3.axisBottom(x));
         },
         hide: function () {
-            if (!barchartHTMLElem.classList.contains("invisible")) {
-                barchartHTMLElem.classList.add("invisible");
+            d3.select(barchartHTMLElem).selectAll("svg").remove();
+
+            if (barchartHTMLElem != null) {
+                if (!barchartHTMLElem.classList.contains("invisible")) {
+                    barchartHTMLElem.classList.add("invisible");
+                }
             }
         },
         show: function () {
-            if (barchartHTMLElem.classList.contains("invisible")) {
-                barchartHTMLElem.classList.remove("invisible");
+            if (barchartHTMLElem != null) {
+                if (barchartHTMLElem.classList.contains("invisible")) {
+                    barchartHTMLElem.classList.remove("invisible");
+                }
             }
         },
         attachControls: function () {
@@ -1059,6 +1439,26 @@ var StackedBarchartHandler = (function () {
             ctrlHTMLElem = $("<div class='countriesControl'></div>").appendTo(barchartHTMLElem);
             var jdiv = (ctrlHTMLElem); // holds the div to which control belongs
             var form; // holds form element
+            var radioBtn;
+
+            var percentCtrl = ($("<input type='checkbox'>"))
+                .appendTo(($("<label>In percents</label>"))
+                    .appendTo(jdiv));
+
+            if (percent) {
+                percentCtrl.prop("checked", true);
+            }
+            // attach sort for both types
+
+            percentCtrl.on('change', function (e) {
+                if (this.checked) {
+                    percent = true;
+                } else {
+                    percent = false;
+                }
+                StackedBarchartHandler.resetChartData();
+                StackedBarchartHandler.redraw();
+            });
 
             var sortCtrl = ($("<input type='checkbox'>"))
                 .appendTo(($("<label>Sort values</label>"))
@@ -1078,62 +1478,25 @@ var StackedBarchartHandler = (function () {
                 StackedBarchartHandler.resetChartData();
                 StackedBarchartHandler.redraw();
             });
+
+            var fixedBarHeightCtrl = ($("<input type='checkbox'>"))
+                .appendTo(($("<label>Fixed bar size</label>"))
+                    .appendTo(jdiv));
+
+            fixedBarHeightCtrl.on('click', function (e) {
+                if (this.checked) {
+                    fixedBarHeight = true;
+                } else {
+                    fixedBarHeight = false;
+                }
+                StackedBarchartHandler.resetChartData();
+                StackedBarchartHandler.redraw();
+            });
+
+
             // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
             //                                      radio      radio         
-            if (type == "countries") {
-                form = $("<form id='gamesForm'></form>");
-                var gameIndex = 1; // 1-10
-                var property = "owners";
-                // games radio group
-                for (var i = 1; i <= fileData.games.length; i++) {
-
-                    var radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
-                    if (i == 1) {
-                        radioBtn.prop("checked", true);
-                    }
-                    radioBtn.on('change', function (e) {
-                        gameIndex = this.value;
-                        propertyParams[0] = "game" + gameIndex + property;
-                        StackedBarchartHandler.resetChartData();
-                        StackedBarchartHandler.redraw();
-                    });
-                    form.append(radioBtn);
-                }
-                form.appendTo(jdiv);
-                // property handler
-                function updateProperty(e) {
-                    property = this.value;
-                    propertyParams[0] = "game" + gameIndex + property;
-                    StackedBarchartHandler.resetChartData();
-                    StackedBarchartHandler.redraw();
-                }
-                form = $("<form id='propertyForm'></form>");
-                // owners
-                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
-                radioBtn.on('change', updateProperty);
-                radioBtn.prop("checked", true);
-                form.append(radioBtn);
-                // active
-                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
-                radioBtn.on('change', updateProperty);
-                form.append(radioBtn);
-                // average playtime
-                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
-                radioBtn.on('change', updateProperty);
-                form.append(radioBtn);
-                // active users to owners relation
-                // radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
-                // radioBtn.on('change', function (e) {
-                //     propertyParams[0] = "game" + gameIndex + "active_users";
-                //     propertyParams[1] = "game" + gameIndex + "owners";
-                // });
-                // form.append(radioBtn);  
-                form.appendTo(jdiv);
-
-            }
-            // if games - attach control group (owners/active/average playtime/active:owners)
-            //                                  radio
-            else if (type == "games") {
+            if (type == "games") {
                 var property = "owners";
                 function updateProperty(e) {
                     property = this.value;
@@ -1142,22 +1505,40 @@ var StackedBarchartHandler = (function () {
                     StackedBarchartHandler.redraw();
                 }
                 form = $("<form id='propertyForm'></form>");
-                // owners
-                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                // addiction category casual / moderate / excessive
+                radioBtn = $('<input type="radio" name="propertyForm" value="addiction_cat">Addiction Category</br>');
                 radioBtn.on('change', updateProperty);
                 radioBtn.prop("checked", true);
                 form.append(radioBtn);
                 // active
-                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn = $('<input type="radio" name="propertyForm" value="aoRelation">Active Users : Owners</br>');
                 radioBtn.on('change', updateProperty);
                 form.append(radioBtn);
                 // average playtime
-                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
-                radioBtn.on('change', updateProperty);
-                form.append(radioBtn);
+
                 form.appendTo(jdiv);
             }
 
+            if (type == "countries") {
+                form = $("<form id='gamesForm'></form>");
+                var gameIndex = 1; // 1-10
+                var property = "owners";
+                // games radio group
+                for (var i = 1; i <= fileData.games.length; i++) {
+                    radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    if (i == 1) {
+                        radioBtn.prop("checked", true);
+                    }
+                    radioBtn.on('change', function (e) {
+                        gameIndex = this.value;
+                        propertyParams[1] = gameIndex;
+                        StackedBarchartHandler.resetChartData();
+                        StackedBarchartHandler.redraw();
+                    });
+                    form.append(radioBtn);
+                }
+                form.appendTo(jdiv);
+            }
 
         },
         detachControls: function () {
@@ -1165,13 +1546,12 @@ var StackedBarchartHandler = (function () {
             $(ctrlHTMLElem).remove();
         },
         startSBC: function (parameters) {
-            StackedBarchartHandler.stopSBC();
             tooltipdiv = d3.select("body").append("div")
                 .attr("class", "tooltip")
                 .style("opacity", 0);
             type = parameters.type;
             propertyParams = parameters.properties;
-            barchartHTMLElem = document.getElementById("barChart");
+            barchartHTMLElem = document.getElementById("stackedBarChart");
             StackedBarchartHandler.resetChartData();
             StackedBarchartHandler.redraw();
             StackedBarchartHandler.attachControls();
@@ -1179,8 +1559,9 @@ var StackedBarchartHandler = (function () {
         },
         stopSBC: function () {
             window.removeEventListener("resize", StackedBarchartHandler.redraw);
+            StackedBarchartHandler.hide();
             StackedBarchartHandler.detachControls();
-            $(tooltipdiv).remove();
+            $(".tooltip").remove();
         }
     };
 }());
