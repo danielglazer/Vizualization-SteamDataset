@@ -349,7 +349,8 @@ function gamesChoropleth() {
     console.log(this);
 }
 function gamesRadialAxis() {
-    console.log(this);
+    stopHandlers();
+    RadialAxisHandler.startSBC({ "type": "games" });
 }
 function gamesBarChart() {
     stopHandlers();
@@ -1559,6 +1560,300 @@ var StackedBarchartHandler = (function () {
             StackedBarchartHandler.hide();
             StackedBarchartHandler.detachControls();
             $(".tooltip").remove();
+        }
+    };
+}());
+
+var RadialAxisHandler = (function () {
+    var type;
+    var propertyParams; // in case of games its a suffix and 
+    var radialGraphElem = document.getElementById("RadialGraph");
+    // var ctrlHTMLElem;
+    var chartData = new Array();
+    var margin = { top: 10, right: 20, bottom: 20, left: 10 }
+    var tooltipdiv;
+    var width;
+    var height;
+    var svg = d3.select(radialGraphElem).append("svg");
+    var labelWidth = 0;
+    // var sorted = false;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            if (type == "games") {
+                var types = ["owners", "active_users", "avg_play_time"];
+                var games_num = fileData.games.length;
+                var games = [new Array(games_num), new Array(games_num), new Array(games_num)];
+                for (var t = 0; t < types.length; t++) {
+                    for (var i = 1; i <= games_num; i++) {
+                        var property_name = "game" + i + types[t];
+                        if (types[t] != "avg_play_time") {
+                            var total = d3.nest()
+                                .rollup(function (v) {
+                                    var value = d3.sum(v, function (d) { return d.properties[property_name]; });
+                                    return {
+                                        "property" : types[t],
+                                        "value": value};
+                                })
+                                .object(fileData.features);
+                        }
+                        else {
+                            var activeUsersProperty = "game" + i + types[1];
+                            var total = d3.nest()
+                                .rollup(function (v) {
+                                    var dividend = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); }));
+                                    var divisor = games[1][i - 1]["value"];
+                                    return {
+                                        "property" : types[t],
+                                        "value": Math.floor(dividend / divisor)};
+                                })
+                                .object(fileData.features);
+                        }
+                        games[t][i - 1] = total;
+                    }
+                }
+                var games_properties = [new Array(games_num), new Array(games_num), new Array(games_num), new Array(games_num), new Array(games_num)]
+                var games_properties_types = ["Rating", "price", "Required_Age", "Is_Multiplayer", "Title"]
+
+                for (var t = 0; t < games_properties_types.length; t++) {
+                    for (var i = 1; i <= games_num; i++) {
+                        var value = fileData.games[i - 1][games_properties_types[t]];
+                        games_properties[t][i - 1] = {
+                            "property" : games_properties_types[t],
+                            "value": value
+                        };
+                    }
+                }
+                // concat the 2 arrays to 1 single array
+                Array.prototype.push.apply(games, games_properties);
+
+                chartData = transposeArray(games);
+               
+            } else if (type == "economy") {
+
+
+            } else if (type == "continents") {
+
+            }
+        },
+        getData: function () {
+           
+            return chartData;
+        },
+        redraw: function () {
+            RadialAxisHandler.show();
+            // clear previous svg 
+            // svg.selectAll("*").remove(); // this may work
+            d3.select(radialGraphElem).selectAll("svg").remove();
+            // if resize happened - need to recalc 'width' and 'height'
+            width = (0.9) * ((radialGraphElem).clientWidth) - margin.left - margin.right;
+            height = (0.9) * ((radialGraphElem).clientHeight) - margin.top - margin.bottom;
+            // and recalc the X and Y functions, which depend on 'width' and 'height'
+            // position the canvas
+            svg = d3.select(radialGraphElem).append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            var y = RadialAxisHandler.getYfunc();
+            var bar = svg.selectAll(".bar")
+                .data(StackedBarchartHandler.getData())
+                .enter().append("g");
+            bar.attr("class", "bar")
+                .attr("transform", function (d, i) {
+                    return "translate(" + margin.top + "," + y(i) + ")";
+                })
+                .on("mouseover", function (d) {
+                    tooltipdiv.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltipdiv.html(d.key + "<br/>" + numberWithCommas(d.value))
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY - 28) + "px");
+                })
+                .on("mouseout", function (d) {
+                    tooltipdiv.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+            var barHeight = y.bandwidth();
+            labelWidth = 0;
+            if (y.bandwidth() > 10) {
+                bar.append("text")
+                    .attr("y", y.bandwidth() / 2)
+                    .attr("dy", ".35em") //vertical align middle
+                    .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
+                    .style("text-align", "right")
+                    .text(function (d) {
+                        return d.key;
+                    }).each(function () {
+                        labelWidth = Math.ceil(Math.max(labelWidth, this.getBBox().width));
+                    });
+            }
+            var x = RadialAxisHandler.getXfunc();
+            bar.append("rect")
+                .attr("transform", "translate(" + labelWidth + ", 0)")
+                .attr("height", y.bandwidth())
+                .attr("width", function (d) { return x(d.value) });
+            if (y.bandwidth() > 10) {
+                bar.append("text")
+                    .attr("y", barHeight / 2)
+                    .attr("dx", labelWidth) //margin right
+                    .attr("dy", ".35em") //vertical align middle
+                    .style("font-size", function (d) { return Math.min(10, (y.bandwidth()) / this.getComputedTextLength() * 24) + "px"; })
+                    .attr("text-anchor", "end")
+                    .text(function (d) {
+                        return (numberWithCommas(d.value));
+                    })
+                    .attr("x", function (d) {
+                        var width = this.getBBox().width;
+                        return Math.max(width, x(d.value));
+                    });
+            }
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                .call(d3.axisBottom(x));
+        },
+        hide: function () {
+            if (!radialGraphElem.classList.contains("invisible")) {
+                radialGraphElem.classList.add("invisible");
+            }
+        },
+        show: function () {
+            if (radialGraphElem.classList.contains("invisible")) {
+                radialGraphElem.classList.remove("invisible");
+            }
+        },
+        attachControls: function () {
+            // control buttons attachment
+            // varies depending on the type of the barchart
+
+            ctrlHTMLElem = $("<div class='countriesControl'></div>").appendTo(radialGraphElem);
+            var jdiv = (ctrlHTMLElem); // holds the div to which control belongs
+            var form; // holds form element
+
+            var sortCtrl = ($("<input type='checkbox'>"))
+                .appendTo(($("<label>Sort values</label>"))
+                    .appendTo(jdiv));
+
+            if (sorted) {
+                sortCtrl.prop("checked", true);
+            }
+            // attach sort for both types
+
+            sortCtrl.on('change', function (e) {
+                if (this.checked) {
+                    sorted = true;
+                } else {
+                    sorted = false;
+                }
+                RadialAxisHandler.resetChartData();
+                RadialAxisHandler.redraw();
+            });
+            // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
+            //                                      radio      radio         
+            if (type == "countries") {
+                form = $("<form id='gamesForm'></form>");
+                var gameIndex = 1; // 1-10
+                var property = "owners";
+                // games radio group
+                for (var i = 1; i <= fileData.games.length; i++) {
+
+                    var radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    if (i == 1) {
+                        radioBtn.prop("checked", true);
+                    }
+                    radioBtn.on('change', function (e) {
+                        gameIndex = this.value;
+                        propertyParams[0] = "game" + gameIndex + property;
+                        RadialAxisHandler.resetChartData();
+                        RadialAxisHandler.redraw();
+                    });
+                    form.append(radioBtn);
+                }
+                form.appendTo(jdiv);
+                // property handler
+                function updateProperty(e) {
+                    property = this.value;
+                    propertyParams[0] = "game" + gameIndex + property;
+                    RadialAxisHandler.resetChartData();
+                    RadialAxisHandler.redraw();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // active users to owners relation
+                // radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                // radioBtn.on('change', function (e) {
+                //     propertyParams[0] = "game" + gameIndex + "active_users";
+                //     propertyParams[1] = "game" + gameIndex + "owners";
+                // });
+                // form.append(radioBtn);  
+                form.appendTo(jdiv);
+
+            }
+            // if games - attach control group (owners/active/average playtime/active:owners)
+            //                                  radio
+            else if (type == "games") {
+                var property = "owners";
+                function updateProperty(e) {
+                    property = this.value;
+                    propertyParams[0] = property;
+                    RadialAxisHandler.resetChartData();
+                    RadialAxisHandler.redraw();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                form.appendTo(jdiv);
+            }
+
+
+        },
+        detachControls: function () {
+            // control buttons detachment
+            $(ctrlHTMLElem).remove();
+        },
+        startSBC: function (parameters) {
+            RadialAxisHandler.stopSBC();
+            tooltipdiv = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+            type = parameters.type;
+            propertyParams = parameters.properties;
+            radialGraphElem = document.getElementById("barChart");
+            RadialAxisHandler.resetChartData();
+            RadialAxisHandler.redraw();
+            RadialAxisHandler.attachControls();
+            window.addEventListener("resize", RadialAxisHandler.redraw);
+        },
+        stopSBC: function () {
+            window.removeEventListener("resize", StackedBarchartHandler.redraw);
+            StackedBarchartHandler.detachControls();
+            $(tooltipdiv).remove();
         }
     };
 }());

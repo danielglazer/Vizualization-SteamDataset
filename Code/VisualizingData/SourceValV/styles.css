@@ -9,7 +9,7 @@ main {
     height: 90%;
 }
 
-#barChart, #stackedBarChart{
+.visualization {
     margin: 0px;
     padding: 0px;
     width: 100%;
