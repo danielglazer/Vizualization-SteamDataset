@@ -1211,67 +1211,68 @@ var StackedBarchartHandler = (function () {
 
                 } else if (propertyParams[0] == "aoRelation") {
                     var types = ["owners", "active_users"];
-                    var games_num = fileData.games.length;
-                    var games = [new Array(games_num), new Array(games_num)];
-                    // reverse order because of the 
-                    // all the active
-                    chartData[1] = [];
-                    for (var i = 1; i <= games_num; i++) {
-                        var property_name = "game" + i + types[1];
-                        var total = d3.nest()
-                            .rollup(function (v) {
-                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
-                                return value;
-                            })
-                            .object(fileData.features);
-                        games[1][i - 1] = total;
-                        chartData[1][i - 1] = { "key": property_name, "value": "" };
+                    var countries_num = fileData.features.length;
+                    var countries = [new Array(countries_num), new Array(countries_num)];
+                    var features = d3.nest()
+                        .key(function (d) { return d.properties.name; })
+                        .entries(fileData.features);
+
+                    // active
+                    chartData[1] = new Array(countries_num);
+
+                    var property = "game" + propertyParams[1] + types[1];
+                    var index = d3.range(countries_num);
+                    countries[1] = index.map(function (i) {
+                        return features[i].values[0].properties[property];
+                    });
+                    for (var i = 0; i < countries_num; chartData[1][i++] = { "key": property, "value": "" });
+
+                    // owners 
+                    chartData[0] = new Array(countries_num);
+
+                    var property = "game" + propertyParams[1] + types[0];
+                    countries[0] = index.map(function (i) {
+                        return features[i].values[0].properties[property];
+                    });
+                    for (var j = 0; j < countries_num; j++) {
+                        countries[0][j] = countries[0][j] - countries[1][j];
                     }
-                    // all the non-active (for stacking purposes)
-                    chartData[0] = [];
-                    for (var i = 1; i <= games_num; i++) {
-                        var property_name = "game" + i + types[0];
-                        var total = d3.nest()
-                            .rollup(function (v) {
-                                var value = (d3.sum(v, function (d) { return (d.properties[property_name]); }));
-                                return value;
-                            })
-                            .object(fileData.features);
-                        games[0][i - 1] = total - games[1][i - 1];
-                        chartData[0][i - 1] = { "key": property_name + "_na", "value": "" };
-                    }
-                    // difference for stacking
-                    for (var i = 1; i <= games_num; i++) {
-                        games[0][i - 1] -= games[1][i - 1];
+                    for (var i = 0; i < countries_num; chartData[0][i++] = { "key": property + "_na", "value": "" });
+
+                    // property is "game"[i]"property"
+                    for (var i = 0; i < fileData.games.length; i++) {
+                        // var propertyName = str.propertyParams[0];
+                        // d3.max(data, function (d) { return d.value })
                     }
 
                     // labels
-                    chartData[types.length] = new Array(games_num);
-                    for (var i = 1; i <= games_num; i++) {
-                        chartData[types.length][i - 1] = { "key": dictionary["game" + i], "value": null };
+                    chartData[types.length] = new Array(countries_num);
+                    for (var i = 0; i < features.length; i++) {
+                        chartData[types.length][i] = { "key": features[i].key };
                     }
                     // percent case
                     if (percent) {
                         // 3 * 10 (3 cats. 10 games for example)
-                        for (var j = 0; j < games[0].length; j++) {
+                        for (var j = 0; j < countries[0].length; j++) {
                             var sum = 0, difference = 0;
-                            for (var i = 0; i < games.length; i++) {
-                                sum += games[i][j];
+                            for (var i = 0; i < countries.length; i++) {
+                                sum += countries[i][j];
                             }
-                            for (var i = 0; i < games.length; i++) {
+                            for (var i = 0; i < countries.length; i++) {
                                 if (sum == 0)
-                                    games[i][j] = 0;
-                                games[i][j] = games[i][j] / sum; // percent value
+                                    countries[i][j] = 0;
+                                countries[i][j] = countries[i][j] / sum; // percent value
                             }
                         }
                     }
-                    var xz = d3.range(games_num);
-                    games = d3.stack().keys(d3.range(types.length))(d3.transpose(games));
+                    var xz = d3.range(countries_num);
+                    countries = d3.stack().keys(d3.range(types.length))(d3.transpose(countries));
                     // after the stack is done
                     // migrate derived series to chartData
                     for (var t = 0; t < types.length; t++) {
-                        for (var i = 1; i <= games_num; i++) {
-                            chartData[t][i - 1].value = games[t][i - 1];
+                        for (var i = 0; i < countries_num; i++) {
+                            chartData[t][i].key = chartData[types.length][i].key + "<br>" + dictionary[chartData[t][i].key];
+                            chartData[t][i].value = countries[t][i];
                         }
                     }
 
@@ -1494,30 +1495,26 @@ var StackedBarchartHandler = (function () {
             });
 
 
-            // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
-            //                                      radio      radio         
-            if (type == "games") {
-                var property = "owners";
-                function updateProperty(e) {
-                    property = this.value;
-                    propertyParams[0] = property;
-                    StackedBarchartHandler.resetChartData();
-                    StackedBarchartHandler.redraw();
-                }
-                form = $("<form id='propertyForm'></form>");
-                // addiction category casual / moderate / excessive
-                radioBtn = $('<input type="radio" name="propertyForm" value="addiction_cat">Addiction Category</br>');
-                radioBtn.on('change', updateProperty);
-                radioBtn.prop("checked", true);
-                form.append(radioBtn);
-                // active
-                radioBtn = $('<input type="radio" name="propertyForm" value="aoRelation">Active Users : Owners</br>');
-                radioBtn.on('change', updateProperty);
-                form.append(radioBtn);
-                // average playtime
-
-                form.appendTo(jdiv);
+            var property = "owners";
+            function updateProperty(e) {
+                property = this.value;
+                propertyParams[0] = property;
+                StackedBarchartHandler.resetChartData();
+                StackedBarchartHandler.redraw();
             }
+            form = $("<form id='propertyForm'></form>");
+            // addiction category casual / moderate / excessive
+            radioBtn = $('<input type="radio" name="propertyForm" value="addiction_cat">Addiction Category</br>');
+            radioBtn.on('change', updateProperty);
+            radioBtn.prop("checked", true);
+            form.append(radioBtn);
+            // active
+            radioBtn = $('<input type="radio" name="propertyForm" value="aoRelation">Active Users : Owners</br>');
+            radioBtn.on('change', updateProperty);
+            form.append(radioBtn);
+            // average playtime
+
+            form.appendTo(jdiv);
 
             if (type == "countries") {
                 form = $("<form id='gamesForm'></form>");
