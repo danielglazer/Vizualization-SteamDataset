@@ -41,6 +41,7 @@ var Handler = (function () {
 }());
 
 var fileData; // the geojson parsed to js json
+
 // A $( document ).ready() block.
 $(document).ready(function () {
     $("#menu-toggle").popover('show');
@@ -346,7 +347,8 @@ function createNavbarListeners() {
 
 // "Games"' Listeners Handler functions
 function gamesChoropleth() {
-    console.log(this);
+    stopHandlers();
+    ChoroplethHandler.startBC({ "type": "games", "properties": ["game1owners"] });
 }
 function gamesRadialAxis() {
     stopHandlers();
@@ -396,6 +398,7 @@ function about() {
 function stopHandlers() {
     BarchartHandler.stopBC();
     StackedBarchartHandler.stopSBC();
+    ChoroplethHandler.stopBC();
 }
 
 /**
@@ -421,172 +424,329 @@ function createClickable(type, id, classes, onClickFunction) {
 var currentProperty = "pop_est"; // pop_est/money_spent // if(division) -> split(/)  
 // linked list / object / array of parameters
 var currentMode = ""; // "enum" 1. rawdata 2. division 3. category
+
 function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
 }
-function choropleth(parameters) {
 
-    currentProperty = parameters.property;
 
-    var map = L.map('mapid');
-    map.createPane('labels');
-    map.getPane('labels').style.zIndex = 650;
-    map.getPane('labels').style.pointerEvents = 'none';
+var ChoroplethHandler = (function () {
+    var type;
+    var propertyParams;
+    var map;
+    var ctrlHTMLElem;
+    var chartData = new Array();
+    var color; // color function 
+    var info; // info element
+    var legend; // legend element
+    var controls;
+    var geojson;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            chartData = fileData;
+        },
+        getData: function () {
+            return chartData;
+        },
+        getProperties: function (d) {
+            var ret;
+            if (propertyParams.length == 2) {
+                var dividend = d.properties[propertyParams[0]];
+                var divisor = d.properties[propertyParams[1]];
+                ret = (divisor == 0) ? (0) : (dividend / divisor);
+            }
+            else {
+                ret = d.properties[propertyParams[0]]
+            }
+            return ret;
+        },
+        draw: function () {
+            ChoroplethHandler.show();
 
-    var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB'
-    }).addTo(map);
+            map.createPane('labels');
+            map.getPane('labels').style.zIndex = 650;
+            map.getPane('labels').style.pointerEvents = 'none';
 
-    var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB',
-        pane: 'labels'
-    }).addTo(map);
+            var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB'
+            }).addTo(map);
 
-    var color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
-        return pickForCurrentProperty(d)
-    })])
-        .interpolate(d3.interpolateHcl)
-        .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
+            var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB',
+                pane: 'labels'
+            }).addTo(map);
 
-    function regenColor(color1, color2) {
-        if (!color1) {
-            color1 = "#f7fbff";
+            color = d3.scaleLinear().domain([0, d3.max(chartData.features, function (d) {
+                return ChoroplethHandler.getProperties(d);
+            })])
+                .interpolate(d3.interpolateHcl)
+                .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
+
+            info = L.control();
+
+            // geojson binding
+            geojson = L.geoJson(chartData, {
+                style: ChoroplethHandler.style,
+                onEachFeature: ChoroplethHandler.onEachFeature
+            }).addTo(map);
+            // pop-up dialog
+            geojson.eachLayer(function (layer) {
+                layer.bindPopup(layer.feature.properties.name);
+            });
+
+            // fit to the bounds of the geojson
+            map.fitBounds(geojson.getBounds());
+            // dont allow user to pan out of the world map view
+            var southWest = L.latLng(-89.98155760646617, -180),
+                northEast = L.latLng(89.99346179538875, 180);
+            var bounds = L.latLngBounds(southWest, northEast);
+            map.setMaxBounds(bounds);
+            map.on('drag', function () {
+                map.panInsideBounds(bounds, { animate: false });
+            });
+            map.setMinZoom(2);
+            map.setMaxZoom(6);
+        },
+        updateMap: function () {
+            ChoroplethHandler.regenColor();
+            info.update();
+            legend.update();
+            geojson.eachLayer(function (layer) {
+                geojson.resetStyle(layer);
+            });
+        },
+        regenColor: function (color1, color2) {
+            if (!color1) {
+                color1 = "#f7fbff";
+            }
+            if (!color2) {
+                color2 = '#08306b';
+            }
+            var domain;
+            if (propertyParams.length == 2) {
+                domain = [0, 1];
+            }
+            else {
+                domain = [0, d3.max(chartData.features, function (d) {
+                    return ChoroplethHandler.getProperties(d);
+                })];
+            }
+            color = d3.scaleLinear().domain(domain)
+                .interpolate(d3.interpolateHcl)
+                .range([d3.rgb(color1), d3.rgb(color2)]);
+        },
+        style: function (feature) {
+            return {
+                fillColor: color([ChoroplethHandler.getProperties(feature)]),
+                weight: 2,
+                opacity: 1,
+                color: 'black',
+                dashArray: '3',
+                fillOpacity: 1
+            };
+        },
+        infoInit: function () {
+            info.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+                this.update();
+                return this._div;
+            };
+
+            // method that we will use to update the control based on feature properties passed
+            info.update = function (feature) {
+                if (propertyParams.length == 2) {
+                    this._div.innerHTML = (feature ?
+                        '<b>' + feature.properties.name + '</b><br />' +
+                        '<b>' + "Active Players / Owners" + '</b><br />' +
+                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                        ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                        : 'Hover over a country </br>' +
+                        '<b>' + "Active Players / Owners" + '</b><br />');
+                }
+                else {
+                    this._div.innerHTML = (feature ?
+                        '<b>' + feature.properties.name + '</b><br />' +
+                        '<b>' + (dictionary[propertyParams[0]]) + '</b><br />' +
+                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                        ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                        : 'Hover over a country </br>' +
+                        '<b>' + dictionary[propertyParams[0]] + '</b><br />');
+                }
+            };
+            info.addTo(map);
+        },
+        highlightFeature: function (e) {
+            var layer = e.target;
+
+            layer.setStyle({
+                weight: 5,
+                color: '#666',
+                dashArray: '',
+                fillOpacity: 1
+            });
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+            info.update(layer.feature);
+        },
+        // mouseout listener
+        resetHighlight: function (e) {
+            geojson.resetStyle(e.target);
+            info.update();
+        },
+        // zoom on click
+        zoomToFeature: function (e) {
+            map.fitBounds(e.target.getBounds());
+        },
+        // highlighting the country, listeners assigment
+        onEachFeature: function (feature, layer) {
+            layer.on({
+                mouseover: ChoroplethHandler.highlightFeature,
+                mouseout: ChoroplethHandler.resetHighlight,
+                click: ChoroplethHandler.zoomToFeature
+            });
+        },
+        legendInit: function () {
+            legend = L.control({ position: 'bottomright' });
+            legend.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info legend')
+                legend.update();
+                return this._div;
+            };
+            legend.update = function () {
+                var max = d3.max(chartData.features, function (d) {
+                    return (propertyParams.length == 2 ? d.properties[propertyParams[0]] / d.properties[propertyParams[1]] : d.properties[propertyParams[0]]);
+                });
+                var grades, labels = [];
+                if (propertyParams.length == 2) {
+                    grades = [0, (1 / 4), (2 / 4), (3 / 4), 1];
+                }
+                else {
+                    grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)];
+                }
+                this._div.innerHTML = "";
+                // loop through our density intervals and generate a label with a colored square for each interval
+                for (var i = 0; i < grades.length; i++) {
+                    this._div.innerHTML +=
+                        // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                        ((propertyParams.length == 2) ? (numberAsPercent(grades[i])) : (numberWithCommas(grades[i]))) + '<br>';
+                }
+            }
+            legend.addTo(map);
+        },
+        controlsInit: function () {
+            controls = L.control({ position: 'bottomright' });
+            controls.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info control');
+                var form; // holds form element
+                var radioBtn;
+                if (type == "games") {
+                    form = $("<form id='gamesForm'></form>");
+                    var gameIndex = 1; // 1-10
+                    var property = "owners";
+                    // games radio group
+                    for (var i = 1; i <= fileData.games.length; i++) {
+
+                        radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                        if (i == 1) {
+                            radioBtn.prop("checked", true);
+                        }
+                        radioBtn.on('change', function (e) {
+                            gameIndex = this.value;
+                            propertyParams[0] = "game" + gameIndex + property;
+                            if (propertyParams.length == 2) {
+                                propertyParams[0] = "game" + gameIndex + "active_users";
+                                propertyParams[1] = "game" + gameIndex + "owners";
+                            }
+                            ChoroplethHandler.resetChartData();
+                            ChoroplethHandler.updateMap();
+                        });
+                        form.append(radioBtn);
+                    }
+                    form.appendTo(this._div);
+                    // property handler
+                    function updateProperty(e) {
+                        property = this.value;
+                        propertyParams[0] = "game" + gameIndex + property;
+                        propertyParams.splice(1, 1);
+                        ChoroplethHandler.resetChartData();
+                        ChoroplethHandler.updateMap();
+                    }
+                    form = $("<form id='propertyForm'></form>");
+                    // owners
+                    radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                    radioBtn.on('change', updateProperty);
+                    radioBtn.prop("checked", true);
+                    form.append(radioBtn);
+                    // active
+                    radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                    radioBtn.on('change', updateProperty);
+                    form.append(radioBtn);
+                    // average playtime
+                    radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                    radioBtn.on('change', updateProperty);
+                    form.append(radioBtn);
+                    // active users to owners relation
+                    radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                    radioBtn.on('change', function (e) {
+                        propertyParams[0] = "game" + gameIndex + "active_users";
+                        propertyParams[1] = "game" + gameIndex + "owners";
+                        ChoroplethHandler.resetChartData();
+                        ChoroplethHandler.updateMap();
+                    });
+                    form.append(radioBtn);
+                    form.appendTo(this._div);
+
+                }
+                controls.update();
+                return this._div;
+            };
+            controls.update = function () {
+
+            };
+            controls.addTo(map);
+        },
+        hide: function () {
+            $("#choropleth").hide();
+        },
+        show: function () {
+            $("#choropleth").show();
+        },
+        attachControls: function () {
+            ChoroplethHandler.legendInit();
+            ChoroplethHandler.infoInit();
+            ChoroplethHandler.controlsInit();
+        },
+        detachControls: function () {
+            if (info != null)
+                map.removeControl(info);
+            if (legend != null)
+                map.removeControl(legend);
+            if (controls != null)
+                map.removeControl(controls);
+        },
+        startBC: function (parameters) {
+            type = parameters.type;
+            propertyParams = null;
+            propertyParams = parameters.properties;
+            ChoroplethHandler.resetChartData();
+            if (map == null) {
+                map = L.map('choropleth');
+                ChoroplethHandler.draw();
+            }
+            ChoroplethHandler.attachControls();
+            ChoroplethHandler.updateMap();
+            ChoroplethHandler.show();
+        },
+        stopBC: function () {
+            ChoroplethHandler.hide();
+            ChoroplethHandler.detachControls();
+            $(".tooltip").remove();
         }
-        if (!color2) {
-            color2 = '#08306b';
-        }
-        color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
-            return pickForCurrentProperty(d)
-        })])
-            .interpolate(d3.interpolateHcl)
-            .range([d3.rgb(color1), d3.rgb(color2)]);
-    }
-
-    function style(feature) {
-        return {
-            fillColor: color([pickForCurrentProperty(feature)]),
-            weight: 2,
-            opacity: 1,
-            color: 'black',
-            dashArray: '3',
-            fillOpacity: 1
-        };
-    }
-
-    // Info
-    var info = L.control();
-
-    info.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
-        this.update();
-        return this._div;
     };
-
-    // method that we will use to update the control based on feature properties passed
-    info.update = function (feature) {
-        this._div.innerHTML = (feature ?
-            '<b>' + feature.properties.name + '</b><br />' +
-            '<b>' + dictionary[currentProperty] + '</b><br />' +
-            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-            numberWithCommas(pickForCurrentProperty(feature)) + '<br />'
-            : 'Hover over a country </br>' +
-            '<b>' + dictionary[currentProperty] + '</b><br />');
-    };
-    info.addTo(map);
-
-    // mouseon listener
-    function highlightFeature(e) {
-        var layer = e.target;
-
-        layer.setStyle({
-            weight: 5,
-            color: '#666',
-            dashArray: '',
-            fillOpacity: 1
-        });
-
-        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-            layer.bringToFront();
-        }
-        info.update(layer.feature);
-    }
-    // mouseout listener
-    function resetHighlight(e) {
-        geojson.resetStyle(e.target);
-        info.update();
-    }
-    // zoom on click
-    function zoomToFeature(e) {
-        map.fitBounds(e.target.getBounds());
-    }
-    // highlighting the country, listeners assigment
-    function onEachFeature(feature, layer) {
-        layer.on({
-            mouseover: highlightFeature,
-            mouseout: resetHighlight,
-            click: zoomToFeature
-        });
-    }
-    // geojson binding
-    var geojson = L.geoJson(fileData, {
-        style: style,
-        onEachFeature: onEachFeature
-    }).addTo(map);
-    // pop-up dialog
-    geojson.eachLayer(function (layer) {
-        layer.bindPopup(layer.feature.properties.name);
-    });
-
-    // fit to the bounds of the geojson
-    map.fitBounds(geojson.getBounds());
-    // dont allow user to pan out of the world map view
-    var southWest = L.latLng(-89.98155760646617, -180),
-        northEast = L.latLng(89.99346179538875, 180);
-    var bounds = L.latLngBounds(southWest, northEast);
-    map.setMaxBounds(bounds);
-    map.on('drag', function () {
-        map.panInsideBounds(bounds, { animate: false });
-    });
-    map.setMinZoom(2);
-    map.setMaxZoom(6);
-
-    // legend
-    var legend = L.control({ position: 'bottomright' });
-    legend.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info legend')
-        legend.update();
-        return this._div;
-    };
-    legend.update = function () {
-        var max = d3.max(fileData.features, function (d) {
-            return pickForCurrentProperty(d)
-        });
-        var grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)],
-            labels = [];
-        this._div.innerHTML = "";
-        // loop through our density intervals and generate a label with a colored square for each interval
-        for (var i = 0; i < grades.length; i++) {
-            this._div.innerHTML +=
-                // '<i style="background:' + color(grades[i]) + '"></i> ' +
-                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                numberWithCommas(grades[i]) + '<br>';
-        }
-    }
-    legend.addTo(map);
-
-    function updateMap() {
-        regenColor();
-        info.update();
-        legend.update();
-        geojson.eachLayer(function (layer) {
-            geojson.resetStyle(layer);
-        });
-    }
-};
-
-function pickForCountry() {
-
-}
+}());
 
 var BarchartHandler = (function () {
     var type;
@@ -1592,8 +1752,9 @@ var RadialAxisHandler = (function () {
                                 .rollup(function (v) {
                                     var value = d3.sum(v, function (d) { return d.properties[property_name]; });
                                     return {
-                                        "property" : types[t],
-                                        "value": value};
+                                        "property": types[t],
+                                        "value": value
+                                    };
                                 })
                                 .object(fileData.features);
                         }
@@ -1604,8 +1765,9 @@ var RadialAxisHandler = (function () {
                                     var dividend = (d3.sum(v, function (d) { return (d.properties[property_name] * d.properties[activeUsersProperty]); }));
                                     var divisor = games[1][i - 1]["value"];
                                     return {
-                                        "property" : types[t],
-                                        "value": Math.floor(dividend / divisor)};
+                                        "property": types[t],
+                                        "value": Math.floor(dividend / divisor)
+                                    };
                                 })
                                 .object(fileData.features);
                         }
@@ -1619,7 +1781,7 @@ var RadialAxisHandler = (function () {
                     for (var i = 1; i <= games_num; i++) {
                         var value = fileData.games[i - 1][games_properties_types[t]];
                         games_properties[t][i - 1] = {
-                            "property" : games_properties_types[t],
+                            "property": games_properties_types[t],
                             "value": value
                         };
                     }
@@ -1628,7 +1790,7 @@ var RadialAxisHandler = (function () {
                 Array.prototype.push.apply(games, games_properties);
 
                 chartData = transposeArray(games);
-               
+
             } else if (type == "economy") {
 
 
@@ -1637,7 +1799,7 @@ var RadialAxisHandler = (function () {
             }
         },
         getData: function () {
-           
+
             return chartData;
         },
         redraw: function () {

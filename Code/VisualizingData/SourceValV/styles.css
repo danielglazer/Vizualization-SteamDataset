@@ -400,7 +400,7 @@ ul.sidebar-nav li a i.fa:hover{
 }
 
 /* <----- Leaflet Map ----->*/
-#mapid {
+#choropleth {
     
     position: absolute;
     height: 90%;
@@ -409,7 +409,7 @@ ul.sidebar-nav li a i.fa:hover{
 
 
 
-div#mapid {}
+div#choropleth {}
 /* Leaflet info box */
 .info {
     padding: 6px 8px;
