@@ -630,10 +630,10 @@ var ChoroplethHandler = (function () {
             var i = groupedData.findIndex(function (element) { return element.key == property });
             return {
                 fillColor: groupedColors[i]([ChoroplethHandler.getProperties(feature)]),
-                weight: 2,
+                weight: 3,
                 opacity: 1,
                 color: baseColors(i),
-                dashArray: '3',
+                dashArray: '1',
                 fillOpacity: 1
             }
         },
@@ -652,18 +652,19 @@ var ChoroplethHandler = (function () {
                         var i = groupedData.findIndex(function (element) { return element.key == property });
                         if (propertyParams.length == 3) {
                             this._div.innerHTML = (feature ?
+                                '<i>' + property + '</i><br />' +
                                 '<b>' + feature.properties.name + '</b><br />' +
-                                '<b>' + property + '</b><br />' +
                                 '<b>' + "Active Players / Owners" + '</b><br />' +
                                 '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                                 ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
                                 : 'Hover over a country </br>' +
                                 '<b>' + "Active Players / Owners" + '</b><br />');
+
                         }
                         else {
                             this._div.innerHTML = (feature ?
+                                '<i>' + property + '</i><br />' +
                                 '<b>' + feature.properties.name + '</b><br />' +
-                                '<b>' + property + '</b><br />' +
                                 '<b>' + "Active Players / Owners" + '</b><br />' +
                                 '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                                 ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
@@ -700,12 +701,33 @@ var ChoroplethHandler = (function () {
             layer.setStyle({
                 weight: 5,
                 color: '#666',
+                opacity: 1,
                 dashArray: '',
                 fillOpacity: 1
             });
             if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                 layer.bringToFront();
             }
+
+            var property = layer.feature.properties[propertyParams[0]];
+            for (var i = 0; i < groupedGeojson.length; i++) {
+                if (groupedData[i].key != property) {
+                    groupedGeojson[i].setStyle({
+                        fillColor: '#d1d5d7',
+                        weight: 1,
+                        opacity: 0.1,
+                        color: '#ffffff',
+                        dashArray: '',
+                        fillOpacity: 0.1
+                    });
+                }
+                else {
+                    groupedGeojson[i].eachLayer(function (layer) {
+                        groupedGeojson[i].resetStyle(layer);
+                    });
+                }
+            }
+
             info.update(layer.feature);
         },
         // mouseout listener
@@ -738,7 +760,7 @@ var ChoroplethHandler = (function () {
                     for (var i = 0; i < groupedData.length; i++) {
                         this._div.innerHTML +=
                             // '<i style="background:' + color(grades[i]) + '"></i> ' +
-                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + baseColors(i) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            '<svg id="category' + i + '" width="10" height="10"><rect width="10" height="10"style="fill:' + baseColors(i) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                             groupedData[i].key + '<br>';
                     }
                 }
@@ -882,7 +904,6 @@ var ChoroplethHandler = (function () {
                 });
                 form.append(radioBtn);
                 form.appendTo(this._div);
-
 
                 controls.update();
                 return this._div;
