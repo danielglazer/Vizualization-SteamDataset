@@ -363,6 +363,7 @@ function gamesStackedBarChart() {
 // "Economy"'s Listeners Handler functions
 function economyLineGraphs() {
     console.log(this);
+    LineGraphHandler.startSBC({ "type": "economy", "properties": ["economy"] })
 }
 function economyRadialAxis() {
     console.log(this);
@@ -1616,12 +1617,16 @@ var RadialAxisHandler = (function () {
                         games[t][i - 1] = total;
                     }
                 }
-                var games_properties = [new Array(games_num), new Array(games_num), new Array(games_num), new Array(games_num)];
-                var games_properties_types = ["Rating", "price", "Required_Age", "Is_Multiplayer"];
+                var games_properties = [new Array(games_num), new Array(games_num)];
+                var games_properties_types = ["Rating", "price"];
 
+                var maxValue = d3.max(fileData.games, function (d) { return d["price"]; });
                 for (var t = 0; t < games_properties_types.length; t++) {
                     for (var i = 1; i <= games_num; i++) {
                         var value = fileData.games[i - 1][games_properties_types[t]];
+                        if (games_properties_types[t] == "price") {
+                            value = maxValue - value;
+                        }
                         games_properties[t][i - 1] = {
                             "property": games_properties_types[t],
                             "value": value
@@ -1640,13 +1645,11 @@ var RadialAxisHandler = (function () {
 
             } else if (type == "economy") {
 
-
             } else if (type == "continents") {
 
             }
         },
         getData: function () {
-
             return chartData;
         },
         redraw: function () {
@@ -2004,6 +2007,180 @@ var RadialAxisHandler = (function () {
             window.removeEventListener("resize", RadialAxisHandler.redraw);
             // RadialAxisHandler.detachControls();
             RadialAxisHandler.hide();
+            $(tooltipdiv).remove();
+        }
+    };
+}());
+
+var LineGraphHandler = (function () {
+    var type;
+    var propertyParams; // in case of games its a suffix and 
+    var graphElem = document.getElementById("lineGraph");
+    // var ctrlHTMLElem;
+    var chartData = new Array();
+    var polygonName = new Array();
+    var margin = { top: 10, right: 20, bottom: 20, left: 100 }
+    var tooltipdiv;
+    var width;
+    var height;
+    var svg = d3.select(graphElem).append("svg");
+    var labelWidth = 0;
+    // var sorted = false;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            if (type == "economy") {
+                // economy / income_grp, name ,  money_spent , gdp_md_est
+                var nestedData = d3.nest()
+                    .key(function (d) { return d.properties[propertyParams[0]]; })
+                    .entries(fileData.features);
+
+
+                nestedData.forEach(function (d) {
+                    d.values.sort(function (a, b) {
+                        return a.properties.gdp_md_est - b.properties.gdp_md_est;
+                    });
+                });
+                chartData = nestedData;
+            }
+        },
+        getData: function () {
+            return chartData;
+        },
+        redraw: function () {
+            LineGraphHandler.show();
+            // clear previous svg 
+            // svg.selectAll("*").remove(); // this may work
+            d3.select(graphElem).selectAll("svg").remove();
+            // if resize happened - need to recalc 'width' and 'height'
+            width = (0.9) * ((graphElem).clientWidth) - margin.left - margin.right;
+            height = (0.9) * ((graphElem).clientHeight) - margin.top - margin.bottom;
+            // and recalc the X and Y functions, which depend on 'width' and 'height'
+            // position the canvas
+            svg = d3.select(graphElem).append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            // LineGraph from here !!!!!!
+
+            // Set the ranges
+            var x = d3.scalePow()
+                .exponent(0.4)
+                .range([0, width]);
+            var y = d3.scalePow()
+                .exponent(0.5)
+                .range([height, 0]);
+
+            // Define the axes
+            // var xAxis = d3.svg.axis().scale(x)
+            //     .orient("bottom");
+
+
+            var xAxis = d3.axisBottom(x);
+
+            // var yAxis = d3.svg.axis().scale(y)
+            //     .orient("left");
+
+            var yAxis = d3.axisLeft(y);
+
+            // Define the line
+            var priceline = d3.line()
+                .x(function (d) { return x(d.properties.gdp_md_est); })
+                .y(function (d) { return y(d.properties.money_spent); });
+
+            // var line = d3.line()
+            //     .x(function (d, i) { return xScale(i); }) // set the x values for the line generator
+            //     .y(function (d) { return yScale(d.y); }) // set the y values for the line generator 
+            //     .curve(d3.curveMonotoneX) // apply smoothing to the line
+
+            // Scale the range of the data
+            x.domain(d3.extent(fileData.features, function (d) { return d.properties.gdp_md_est; }));
+            y.domain([0, d3.max(fileData.features, function (d) { return d.properties.money_spent; })]);
+
+            var color = d3.scaleOrdinal(d3.schemeCategory10);  // set the colour scale
+
+            // Loop through each economy category (key)
+            chartData.forEach(function (d) {
+
+                svg.append("path")
+                    .attr("class", "line")
+                    .style("stroke", function () { // Add dynamically
+                        return d.color = color(d.key);
+                    })
+                    .attr("d", priceline(d.values));
+
+                svg.selectAll("dot")
+                    .data(d.values)
+                    .enter().append("circle")
+                    .attr("r", 2)
+                    .attr("cx", function (d) { return x(d.properties.gdp_md_est); })
+                    .attr("cy", function (d) { return y(d.properties.money_spent); })
+                    .on("mouseover", function (d) {
+                        tooltipdiv.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltipdiv.html("Country: " + d.properties.name + "<br>" + "GDP :" + d.properties.gdp_md_est + "<br>" + "Money Spent :" + d.properties.money_spent)
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        tooltipdiv.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            });
+
+            tooltipdiv = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+
+            // Add the X Axis
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            // Add the Y Axis
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+
+        },
+        hide: function () {
+
+            d3.select(graphElem).selectAll("svg").remove();
+            if (graphElem != null) {
+                if (!graphElem.classList.contains("invisible")) {
+                    graphElem.classList.add("invisible");
+                }
+            }
+        },
+        show: function () {
+            if (graphElem != null) {
+                if (graphElem.classList.contains("invisible")) {
+                    graphElem.classList.remove("invisible");
+                }
+            }
+        },
+        startSBC: function (parameters) {
+            LineGraphHandler.stopSBC();
+            tooltipdiv = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+            type = parameters.type;
+            propertyParams = parameters.properties;
+            graphElem = document.getElementById("lineGraph");
+            LineGraphHandler.resetChartData();
+            LineGraphHandler.redraw();
+            window.addEventListener("resize", LineGraphHandler.redraw);
+        },
+        stopSBC: function () {
+            window.removeEventListener("resize", LineGraphHandler.redraw);
+            LineGraphHandler.hide();
             $(tooltipdiv).remove();
         }
     };

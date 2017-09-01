@@ -439,7 +439,13 @@ div#mapid {}
 .bar text {
     fill: #212529;
 }
-  
+
+path {
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+
 .axis path, .axis line {
     fill: none;
     stroke: black;
