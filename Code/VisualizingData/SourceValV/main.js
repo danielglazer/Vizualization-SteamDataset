@@ -340,7 +340,7 @@ function createNavbarListeners() {
     //Continents
     Handler.addListener($("#Continents_TreeMap")[0], "click", continentsTreeMap, false);
     Handler.addListener($("#Continents_Choropleth")[0], "click", continentsChoropleth, false);
-    Handler.addListener($("#Continents_Choropleth")[0], "click", continentsRadialAxis, false);
+    Handler.addListener($("#Continents_RadialAxis")[0], "click", continentsRadialAxis, false);
     //About
     Handler.addListener($("#About")[0], "click", about, false);
 };
@@ -386,7 +386,8 @@ function continentsTreeMap() {
     console.log(this);
 }
 function continentsChoropleth() {
-    console.log(this);
+    stopHandlers();
+    ChoroplethHandler.startBC({ "type": "continents", "properties": ["continent", "game1owners"] });
 }
 function continentsRadialAxis() {
     console.log(this);
@@ -436,28 +437,74 @@ var ChoroplethHandler = (function () {
     var map;
     var ctrlHTMLElem;
     var chartData = new Array();
-    var color; // color function 
+    var groupedData = new Array();
+    var color; // color function
+    var groupedColors;
+    var baseColors;
     var info; // info element
     var legend; // legend element
     var controls;
     var geojson;
+    var groupedGeojson;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
         resetChartData: function () {
-            chartData = fileData;
+            if (type == "continents") {
+                var propertyName = propertyParams[0];
+                groupedData = d3.nest()
+                    .key(function (d) { return d.properties[propertyName]; })
+                    .entries(fileData.features);
+                groupedData.sort(function (a, b) {
+                    var keyA = a.key.toUpperCase(); // ignore upper and lowercase
+                    var keyB = b.key.toUpperCase(); // ignore upper and lowercase
+                    if (keyA < keyB) {
+                        return -1;
+                    }
+                    if (keyA > keyB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                })
+                ChoroplethHandler.resetGroupedColor();
+            }
+            chartData = Object.assign({}, fileData); // deep copy
+        },
+        resetGroupedColor: function () {
+            groupedColors = new Array();
+            baseColors = d3.scaleOrdinal(d3.schemeCategory10);
+            for (var i = 0; i < groupedData.length; i++) {
+                var domain = [0, d3.max(groupedData[i].values, function (d) {
+                    return ChoroplethHandler.getProperties(d);
+                })];
+                groupedColors[i] = d3.scaleLinear().domain(domain)
+                    .interpolate(d3.interpolateRgb)
+                    .range([d3.rgb("white"), baseColors(i)]);
+            }
         },
         getData: function () {
             return chartData;
         },
         getProperties: function (d) {
             var ret;
-            if (propertyParams.length == 2) {
-                var dividend = d.properties[propertyParams[0]];
-                var divisor = d.properties[propertyParams[1]];
-                ret = (divisor == 0) ? (0) : (dividend / divisor);
-            }
-            else {
-                ret = d.properties[propertyParams[0]]
+            if (type == "continents") {
+                if (propertyParams.length == 3) {
+                    var dividend = d.properties[propertyParams[1]];
+                    var divisor = d.properties[propertyParams[2]];
+                    ret = (divisor == 0) ? (0) : (dividend / divisor);
+                }
+                else {
+                    ret = d.properties[propertyParams[1]];
+                }
+            } else {
+                if (propertyParams.length == 2) {
+                    var dividend = d.properties[propertyParams[0]];
+                    var divisor = d.properties[propertyParams[1]];
+                    ret = (divisor == 0) ? (0) : (dividend / divisor);
+                }
+                else {
+                    ret = d.properties[propertyParams[0]];
+                }
             }
             return ret;
         },
@@ -477,23 +524,10 @@ var ChoroplethHandler = (function () {
                 pane: 'labels'
             }).addTo(map);
 
-            color = d3.scaleLinear().domain([0, d3.max(chartData.features, function (d) {
-                return ChoroplethHandler.getProperties(d);
-            })])
-                .interpolate(d3.interpolateHcl)
-                .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
-
+            ChoroplethHandler.regenColor();
             info = L.control();
 
-            // geojson binding
-            geojson = L.geoJson(chartData, {
-                style: ChoroplethHandler.style,
-                onEachFeature: ChoroplethHandler.onEachFeature
-            }).addTo(map);
-            // pop-up dialog
-            geojson.eachLayer(function (layer) {
-                layer.bindPopup(layer.feature.properties.name);
-            });
+            ChoroplethHandler.attachLayers();
 
             // fit to the bounds of the geojson
             map.fitBounds(geojson.getBounds());
@@ -508,13 +542,57 @@ var ChoroplethHandler = (function () {
             map.setMinZoom(2);
             map.setMaxZoom(6);
         },
+        attachLayers: function () {
+            if (type == "continents") {
+                groupedGeojson = new Array();
+                for (var i = 0; i < groupedData.length; i++) {
+                    // geojson binding
+                    groupedGeojson[i] = L.geoJson(groupedData[i].values, {
+                        style: ChoroplethHandler.groupedStyle,
+                        onEachFeature: ChoroplethHandler.onEachFeature
+                    }).addTo(map);
+                    // pop-up dialog
+                    groupedGeojson[i].eachLayer(function (layer) {
+                        layer.bindPopup(layer.feature.properties.name);
+                    });
+                    geojson = groupedGeojson[i];
+                }
+            } else {
+                geojson = L.geoJson(chartData, {
+                    style: ChoroplethHandler.style,
+                    onEachFeature: ChoroplethHandler.onEachFeature
+                }).addTo(map);
+                // pop-up dialog
+                geojson.eachLayer(function (layer) {
+                    layer.bindPopup(layer.feature.properties.name);
+                });
+            }
+        },
+        redraw: function () {
+            map.removeLayer(geojson);
+            if (groupedGeojson != null) {
+                for (var i = 0; i < groupedGeojson.length; i++) {
+                    map.removeLayer(groupedGeojson[i]);
+                }
+            }
+            ChoroplethHandler.attachLayers();
+            // geojson = L.geoJson(ChoroplethHandler.getData(), {
+            //     style: ChoroplethHandler.style,
+            //     onEachFeature: ChoroplethHandler.onEachFeature
+            // }).addTo(map);
+        },
         updateMap: function () {
+            ChoroplethHandler.resetChartData();
             ChoroplethHandler.regenColor();
             info.update();
             legend.update();
-            geojson.eachLayer(function (layer) {
-                geojson.resetStyle(layer);
-            });
+            ChoroplethHandler.redraw();
+            // geojson.eachLayer(function (layer) {
+            //     geojson.resetStyle(layer);
+            // });
+            if (type == "continents") {
+
+            }
         },
         regenColor: function (color1, color2) {
             if (!color1) {
@@ -533,7 +611,7 @@ var ChoroplethHandler = (function () {
                 })];
             }
             color = d3.scaleLinear().domain(domain)
-                .interpolate(d3.interpolateHcl)
+                .interpolate(d3.interpolateRgb)
                 .range([d3.rgb(color1), d3.rgb(color2)]);
         },
         style: function (feature) {
@@ -545,6 +623,19 @@ var ChoroplethHandler = (function () {
                 dashArray: '3',
                 fillOpacity: 1
             };
+
+        },
+        groupedStyle: function (feature) {
+            var property = feature.properties[propertyParams[0]];
+            var i = groupedData.findIndex(function (element) { return element.key == property });
+            return {
+                fillColor: groupedColors[i]([ChoroplethHandler.getProperties(feature)]),
+                weight: 2,
+                opacity: 1,
+                color: baseColors(i),
+                dashArray: '3',
+                fillOpacity: 1
+            }
         },
         infoInit: function () {
             info.onAdd = function (map) {
@@ -555,23 +646,50 @@ var ChoroplethHandler = (function () {
 
             // method that we will use to update the control based on feature properties passed
             info.update = function (feature) {
-                if (propertyParams.length == 2) {
-                    this._div.innerHTML = (feature ?
-                        '<b>' + feature.properties.name + '</b><br />' +
-                        '<b>' + "Active Players / Owners" + '</b><br />' +
-                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                        ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
-                        : 'Hover over a country </br>' +
-                        '<b>' + "Active Players / Owners" + '</b><br />');
-                }
-                else {
-                    this._div.innerHTML = (feature ?
-                        '<b>' + feature.properties.name + '</b><br />' +
-                        '<b>' + (dictionary[propertyParams[0]]) + '</b><br />' +
-                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                        ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
-                        : 'Hover over a country </br>' +
-                        '<b>' + dictionary[propertyParams[0]] + '</b><br />');
+                if (type == "continents") {
+                    if (feature != null) {
+                        var property = feature.properties[propertyParams[0]];
+                        var i = groupedData.findIndex(function (element) { return element.key == property });
+                        if (propertyParams.length == 3) {
+                            this._div.innerHTML = (feature ?
+                                '<b>' + feature.properties.name + '</b><br />' +
+                                '<b>' + property + '</b><br />' +
+                                '<b>' + "Active Players / Owners" + '</b><br />' +
+                                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                : 'Hover over a country </br>' +
+                                '<b>' + "Active Players / Owners" + '</b><br />');
+                        }
+                        else {
+                            this._div.innerHTML = (feature ?
+                                '<b>' + feature.properties.name + '</b><br />' +
+                                '<b>' + property + '</b><br />' +
+                                '<b>' + "Active Players / Owners" + '</b><br />' +
+                                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                : 'Hover over a country </br>' +
+                                '<b>' + "Active Players / Owners" + '</b><br />');
+                        }
+                    }
+                } else {
+                    if (propertyParams.length == 2) {
+                        this._div.innerHTML = (feature ?
+                            '<b>' + feature.properties.name + '</b><br />' +
+                            '<b>' + "Active Players / Owners" + '</b><br />' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                            : 'Hover over a country </br>' +
+                            '<b>' + "Active Players / Owners" + '</b><br />');
+                    }
+                    else {
+                        this._div.innerHTML = (feature ?
+                            '<b>' + feature.properties.name + '</b><br />' +
+                            '<b>' + (dictionary[propertyParams[0]]) + '</b><br />' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                            : 'Hover over a country </br>' +
+                            '<b>' + dictionary[propertyParams[0]] + '</b><br />');
+                    }
                 }
             };
             info.addTo(map);
@@ -615,44 +733,99 @@ var ChoroplethHandler = (function () {
                 return this._div;
             };
             legend.update = function () {
-                var max = d3.max(chartData.features, function (d) {
-                    return (propertyParams.length == 2 ? d.properties[propertyParams[0]] / d.properties[propertyParams[1]] : d.properties[propertyParams[0]]);
-                });
-                var grades, labels = [];
-                if (propertyParams.length == 2) {
-                    grades = [0, (1 / 4), (2 / 4), (3 / 4), 1];
+                if (type == "continents") {
+                    this._div.innerHTML = "";
+                    for (var i = 0; i < groupedData.length; i++) {
+                        this._div.innerHTML +=
+                            // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + baseColors(i) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            groupedData[i].key + '<br>';
+                    }
                 }
-                else {
-                    grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)];
-                }
-                this._div.innerHTML = "";
-                // loop through our density intervals and generate a label with a colored square for each interval
-                for (var i = 0; i < grades.length; i++) {
-                    this._div.innerHTML +=
-                        // '<i style="background:' + color(grades[i]) + '"></i> ' +
-                        '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                        ((propertyParams.length == 2) ? (numberAsPercent(grades[i])) : (numberWithCommas(grades[i]))) + '<br>';
+                else if (type == "games") {
+                    var max = d3.max(chartData.features, function (d) {
+                        return ChoroplethHandler.getProperties(d);
+                    });
+                    var grades = new Array(), labels = [];
+                    var legendCategories = 10;
+                    var off = 0;
+                    if (type == "continents")
+                        off = 1;
+                    if (propertyParams.length - off == 2) {
+                        for (var i = 0; i <= legendCategories; i++) {
+                            grades[i] = i / legendCategories;
+                        }
+                        // grades = [0, (1 / 4), (2 / 4), (3 / 4), 1];
+                    }
+                    else if (propertyParams.length - off == 1) {
+                        for (var i = 0; i <= legendCategories; i++) {
+                            grades[i] = Math.floor((i / legendCategories) * max);
+                        }
+                        // grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)];
+                    }
+                    this._div.innerHTML = "";
+                    // loop through our density intervals and generate a label with a colored square for each interval
+                    for (var i = 0; i < grades.length; i++) {
+                        this._div.innerHTML +=
+                            // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            ((propertyParams.length - off == 2) ? (numberAsPercent(grades[i])) : (numberWithCommas(grades[i]))) + '<br>';
+                    }
                 }
             }
             legend.addTo(map);
         },
         controlsInit: function () {
-            controls = L.control({ position: 'bottomright' });
+            controls = L.control({ position: 'bottomleft' });
             controls.onAdd = function (map) {
                 this._div = L.DomUtil.create('div', 'info control');
                 var form; // holds form element
                 var radioBtn;
-                if (type == "games") {
-                    form = $("<form id='gamesForm'></form>");
-                    var gameIndex = 1; // 1-10
-                    var property = "owners";
-                    // games radio group
-                    for (var i = 1; i <= fileData.games.length; i++) {
 
-                        radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
-                        if (i == 1) {
-                            radioBtn.prop("checked", true);
-                        }
+                if (type == "continents") {
+                    function updateGroup(e) {
+                        propertyParams[0] = this.value;
+                        ChoroplethHandler.resetChartData();
+                        ChoroplethHandler.updateMap();
+                    }
+                    form = $("<form id='groupForm'></form>");
+                    // Continents
+                    radioBtn = $('<input type="radio" name="groupForm" value="continent">Continents</br>');
+                    radioBtn.on('change', updateGroup);
+                    radioBtn.prop("checked", true);
+                    form.append(radioBtn);
+                    // Economy Group
+                    radioBtn = $('<input type="radio" name="groupForm" value="economy">Economy Group</br>');
+                    radioBtn.on('change', updateGroup);
+                    form.append(radioBtn);
+                    // Income Group
+                    radioBtn = $('<input type="radio" name="groupForm" value="income_grp">Income Group</br>');
+                    radioBtn.on('change', updateGroup);
+                    form.append(radioBtn);
+                    form.appendTo(this._div);
+                }
+
+                form = $("<form id='gamesForm'></form>");
+                var gameIndex = 1; // 1-10
+                var property = "owners";
+                // games radio group
+                for (var i = 1; i <= fileData.games.length; i++) {
+                    radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    if (i == 1) {
+                        radioBtn.prop("checked", true);
+                    }
+                    if (type == "continents") {
+                        radioBtn.on('change', function (e) {
+                            gameIndex = this.value;
+                            propertyParams[1] = "game" + gameIndex + property;
+                            if (propertyParams.length == 3) {
+                                propertyParams[1] = "game" + gameIndex + "active_users";
+                                propertyParams[2] = "game" + gameIndex + "owners";
+                            }
+                            ChoroplethHandler.updateMap();
+                        });
+                    }
+                    else if (type == "games") {
                         radioBtn.on('change', function (e) {
                             gameIndex = this.value;
                             propertyParams[0] = "game" + gameIndex + property;
@@ -660,46 +833,57 @@ var ChoroplethHandler = (function () {
                                 propertyParams[0] = "game" + gameIndex + "active_users";
                                 propertyParams[1] = "game" + gameIndex + "owners";
                             }
-                            ChoroplethHandler.resetChartData();
                             ChoroplethHandler.updateMap();
                         });
-                        form.append(radioBtn);
                     }
-                    form.appendTo(this._div);
-                    // property handler
-                    function updateProperty(e) {
-                        property = this.value;
+                    form.append(radioBtn);
+                }
+                form.appendTo(this._div);
+                // property handler
+
+                function updateProperty(e) {
+                    property = this.value;
+                    if (type == "continents") {
+                        propertyParams[1] = "game" + gameIndex + property;
+                        propertyParams.splice(2, 1);
+                    } else if (type == "games") {
                         propertyParams[0] = "game" + gameIndex + property;
                         propertyParams.splice(1, 1);
-                        ChoroplethHandler.resetChartData();
-                        ChoroplethHandler.updateMap();
                     }
-                    form = $("<form id='propertyForm'></form>");
-                    // owners
-                    radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
-                    radioBtn.on('change', updateProperty);
-                    radioBtn.prop("checked", true);
-                    form.append(radioBtn);
-                    // active
-                    radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
-                    radioBtn.on('change', updateProperty);
-                    form.append(radioBtn);
-                    // average playtime
-                    radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
-                    radioBtn.on('change', updateProperty);
-                    form.append(radioBtn);
-                    // active users to owners relation
-                    radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
-                    radioBtn.on('change', function (e) {
+                    ChoroplethHandler.resetChartData();
+                    ChoroplethHandler.updateMap();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // active users to owners relation
+                radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                radioBtn.on('change', function (e) {
+                    if (type == "continents") {
+                        propertyParams[1] = "game" + gameIndex + "active_users";
+                        propertyParams[2] = "game" + gameIndex + "owners";
+                    } else if (type == "games") {
                         propertyParams[0] = "game" + gameIndex + "active_users";
                         propertyParams[1] = "game" + gameIndex + "owners";
-                        ChoroplethHandler.resetChartData();
-                        ChoroplethHandler.updateMap();
-                    });
-                    form.append(radioBtn);
-                    form.appendTo(this._div);
+                    }
+                    ChoroplethHandler.resetChartData();
+                    ChoroplethHandler.updateMap();
+                });
+                form.append(radioBtn);
+                form.appendTo(this._div);
 
-                }
+
                 controls.update();
                 return this._div;
             };
@@ -735,6 +919,9 @@ var ChoroplethHandler = (function () {
             if (map == null) {
                 map = L.map('choropleth');
                 ChoroplethHandler.draw();
+            }
+            else {
+                ChoroplethHandler.redraw();
             }
             ChoroplethHandler.attachControls();
             ChoroplethHandler.updateMap();
@@ -861,9 +1048,6 @@ var BarchartHandler = (function () {
                 else {
                     return d.properties[propertyParams[0]];
                 }
-            }
-            else if (type == "games") {
-                // TODO Unused
             }
         },
         getXfunc: function () {
