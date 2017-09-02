@@ -41,6 +41,7 @@ var Handler = (function () {
 }());
 
 var fileData; // the geojson parsed to js json
+
 // A $( document ).ready() block.
 $(document).ready(function () {
     $("#menu-toggle").popover('show');
@@ -286,8 +287,10 @@ function numberAsPercent(x) {
     return "" + (Math.round(x * 1000)) / 10 + "%";
 }
 
-function getTime(minutes) {
-    return Math.floor(minutes / 60) + " : " + (minutes % 60);
+function getTime2w(minutes) {
+    var min = minutes / 14; // min per day
+    var remainder = ((Math.floor((min % 60) / 10)) ? '' : '0') + Math.floor(min % 60);
+    return Math.floor(min / 60) + " : " + remainder;
 }
 
 function transposeArray(array) {
@@ -339,18 +342,19 @@ function createNavbarListeners() {
     //Continents
     Handler.addListener($("#Continents_TreeMap")[0], "click", continentsTreeMap, false);
     Handler.addListener($("#Continents_Choropleth")[0], "click", continentsChoropleth, false);
-    Handler.addListener($("#Continents_Choropleth")[0], "click", continentsRadialAxis, false);
+    Handler.addListener($("#Continents_RadialAxis")[0], "click", continentsRadialAxis, false);
     //About
     Handler.addListener($("#About")[0], "click", about, false);
 };
 
 // "Games"' Listeners Handler functions
 function gamesChoropleth() {
-    console.log(this);
+    stopHandlers();
+    ChoroplethHandler.startBC({ "type": "games", "properties": ["game1owners"] });
 }
 function gamesRadialAxis() {
     stopHandlers();
-    RadialAxisHandler.startSBC({ "type": "games" });
+    RadialAxisHandler.start({ "type": "games" });
 }
 function gamesBarChart() {
     stopHandlers();
@@ -366,10 +370,12 @@ function economyLineGraphs() {
     LineGraphHandler.startSBC({ "type": "economy", "properties": ["economy"] })
 }
 function economyRadialAxis() {
-    console.log(this);
+    stopHandlers();
+    RadialAxisHandler.start({ "type": "economy" });
 }
 function economyParallelCoordinates() {
-    console.log(this);
+    stopHandlers();
+    ParallelCoordinateHandler.start({ "type": "economy", "properties": [] });
 }
 // "Countries"' Listeners Handler functions
 function countriesBarChart() {
@@ -383,13 +389,15 @@ function countriesStackedBarChart() {
 // "Continents"' Listeners Handler functions
 function continentsTreeMap() {
     stopHandlers();
-    TreeMapHandler.startSBC({ "type": "continents", "properties": ["country_owners"] })
+    TreeMapHandler.startSBC({ "type": "continents", "properties": ["country_owners"] });
 }
 function continentsChoropleth() {
-    console.log(this);
+    stopHandlers();
+    ChoroplethHandler.startBC({ "type": "continents", "properties": ["continent", "game1owners"] });
 }
 function continentsRadialAxis() {
-    console.log(this);
+    stopHandlers();
+    RadialAxisHandler.start({ "type": "continents" });
 }
 // "About"'s Listener Handler function
 function about() {
@@ -398,7 +406,9 @@ function about() {
 function stopHandlers() {
     BarchartHandler.stopBC();
     StackedBarchartHandler.stopSBC();
-    RadialAxisHandler.stopSBC();
+    ChoroplethHandler.stopBC();
+    ParallelCoordinateHandler.stop();
+    RadialAxisHandler.stop();
     LineGraphHandler.stopSBC();
     TreeMapHandler.stopSBC();
 }
@@ -429,169 +439,560 @@ var currentMode = ""; // "enum" 1. rawdata 2. division 3. category
 function pickForCurrentProperty(d) {
     return d.properties[currentProperty];
 }
-function choropleth(parameters) {
 
-    currentProperty = parameters.property;
 
-    var map = L.map('mapid');
-    map.createPane('labels');
-    map.getPane('labels').style.zIndex = 650;
-    map.getPane('labels').style.pointerEvents = 'none';
+var ChoroplethHandler = (function () {
+    var type;
+    var propertyParams;
+    var map;
+    var ctrlHTMLElem;
+    var chartData = new Array();
+    var groupedData = new Array();
+    var color; // color function
+    var groupedColors;
+    var baseColors;
+    var info; // info element
+    var legend; // legend element
+    var controls;
+    var geojson;
+    var groupedGeojson;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            if (type == "continents") {
+                var propertyName = propertyParams[0];
+                groupedData = d3.nest()
+                    .key(function (d) { return d.properties[propertyName]; })
+                    .entries(fileData.features);
+                groupedData.sort(function (a, b) {
+                    var keyA = a.key.toUpperCase(); // ignore upper and lowercase
+                    var keyB = b.key.toUpperCase(); // ignore upper and lowercase
+                    if (keyA < keyB) {
+                        return -1;
+                    }
+                    if (keyA > keyB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                })
+                ChoroplethHandler.resetGroupedColor();
+            }
+            chartData = Object.assign({}, fileData); // deep copy
+        },
+        resetGroupedColor: function () {
+            groupedColors = new Array();
+            baseColors = d3.scaleOrdinal(d3.schemeCategory10);
+            for (var i = 0; i < groupedData.length; i++) {
+                var domain = [0, d3.max(groupedData[i].values, function (d) {
+                    return ChoroplethHandler.getProperties(d);
+                })];
+                groupedColors[i] = d3.scaleLinear().domain(domain)
+                    .interpolate(d3.interpolateRgb)
+                    .range([d3.rgb("white"), baseColors(i)]);
+            }
+        },
+        getData: function () {
+            return chartData;
+        },
+        getProperties: function (d) {
+            var ret;
+            if (type == "continents") {
+                if (propertyParams.length == 3) {
+                    var dividend = d.properties[propertyParams[1]];
+                    var divisor = d.properties[propertyParams[2]];
+                    ret = (divisor == 0) ? (0) : (dividend / divisor);
+                }
+                else {
+                    ret = d.properties[propertyParams[1]];
+                }
+            } else {
+                if (propertyParams.length == 2) {
+                    var dividend = d.properties[propertyParams[0]];
+                    var divisor = d.properties[propertyParams[1]];
+                    ret = (divisor == 0) ? (0) : (dividend / divisor);
+                }
+                else {
+                    ret = d.properties[propertyParams[0]];
+                }
+            }
+            return ret;
+        },
+        draw: function () {
+            ChoroplethHandler.show();
 
-    var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB'
-    }).addTo(map);
+            map.createPane('labels');
+            map.getPane('labels').style.zIndex = 650;
+            map.getPane('labels').style.pointerEvents = 'none';
 
-    var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
-        attribution: '©OpenStreetMap, ©CartoDB',
-        pane: 'labels'
-    }).addTo(map);
+            var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB'
+            }).addTo(map);
 
-    var color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
-        return pickForCurrentProperty(d)
-    })])
-        .interpolate(d3.interpolateHcl)
-        .range([d3.rgb("#f7fbff"), d3.rgb('#08306b')]);
+            var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB',
+                pane: 'labels'
+            }).addTo(map);
 
-    function regenColor(color1, color2) {
-        if (!color1) {
-            color1 = "#f7fbff";
+            ChoroplethHandler.regenColor();
+            info = L.control();
+
+            ChoroplethHandler.attachLayers();
+
+            // fit to the bounds of the geojson
+            map.fitBounds(geojson.getBounds());
+            // dont allow user to pan out of the world map view
+            var southWest = L.latLng(-89.98155760646617, -180),
+                northEast = L.latLng(89.99346179538875, 180);
+            var bounds = L.latLngBounds(southWest, northEast);
+            map.setMaxBounds(bounds);
+            map.on('drag', function () {
+                map.panInsideBounds(bounds, { animate: false });
+            });
+            map.setMinZoom(2);
+            map.setMaxZoom(6);
+        },
+        attachLayers: function () {
+            if (type == "continents") {
+                groupedGeojson = new Array();
+                for (var i = 0; i < groupedData.length; i++) {
+                    // geojson binding
+                    groupedGeojson[i] = L.geoJson(groupedData[i].values, {
+                        style: ChoroplethHandler.groupedStyle,
+                        onEachFeature: ChoroplethHandler.onEachFeature
+                    }).addTo(map);
+                    // pop-up dialog
+                    groupedGeojson[i].eachLayer(function (layer) {
+                        layer.bindPopup(layer.feature.properties.name);
+                    });
+                    geojson = groupedGeojson[i];
+                }
+            } else {
+                geojson = L.geoJson(chartData, {
+                    style: ChoroplethHandler.style,
+                    onEachFeature: ChoroplethHandler.onEachFeature
+                }).addTo(map);
+                // pop-up dialog
+                geojson.eachLayer(function (layer) {
+                    layer.bindPopup(layer.feature.properties.name);
+                });
+            }
+        },
+        redraw: function () {
+            map.removeLayer(geojson);
+            if (groupedGeojson != null) {
+                for (var i = 0; i < groupedGeojson.length; i++) {
+                    map.removeLayer(groupedGeojson[i]);
+                }
+            }
+            ChoroplethHandler.attachLayers();
+            // geojson = L.geoJson(ChoroplethHandler.getData(), {
+            //     style: ChoroplethHandler.style,
+            //     onEachFeature: ChoroplethHandler.onEachFeature
+            // }).addTo(map);
+        },
+        updateMap: function () {
+            ChoroplethHandler.resetChartData();
+            ChoroplethHandler.regenColor();
+            info.update();
+            legend.update();
+            ChoroplethHandler.redraw();
+            // geojson.eachLayer(function (layer) {
+            //     geojson.resetStyle(layer);
+            // });
+            if (type == "continents") {
+
+            }
+        },
+        regenColor: function (color1, color2) {
+            if (!color1) {
+                color1 = "#f7fbff";
+            }
+            if (!color2) {
+                color2 = '#08306b';
+            }
+            var domain;
+            if (propertyParams.length == 2) {
+                domain = [0, 1];
+            }
+            else {
+                domain = [0, d3.max(chartData.features, function (d) {
+                    return ChoroplethHandler.getProperties(d);
+                })];
+            }
+            color = d3.scaleLinear().domain(domain)
+                .interpolate(d3.interpolateRgb)
+                .range([d3.rgb(color1), d3.rgb(color2)]);
+        },
+        style: function (feature) {
+            return {
+                fillColor: color([ChoroplethHandler.getProperties(feature)]),
+                weight: 2,
+                opacity: 1,
+                color: 'black',
+                dashArray: '3',
+                fillOpacity: 1
+            };
+
+        },
+        groupedStyle: function (feature) {
+            var property = feature.properties[propertyParams[0]];
+            var i = groupedData.findIndex(function (element) { return element.key == property });
+            return {
+                fillColor: groupedColors[i]([ChoroplethHandler.getProperties(feature)]),
+                weight: 3,
+                opacity: 1,
+                color: baseColors(i),
+                dashArray: '1',
+                fillOpacity: 1
+            }
+        },
+        infoInit: function () {
+            info.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+                this.update();
+                return this._div;
+            };
+
+            // method that we will use to update the control based on feature properties passed
+            info.update = function (feature) {
+                if (type == "continents") {
+                    if (feature != null) {
+                        var property = feature.properties[propertyParams[0]];
+                        var i = groupedData.findIndex(function (element) { return element.key == property });
+                        if (propertyParams.length == 3) {
+                            this._div.innerHTML = (feature ?
+                                '<i>' + property + '</i><br />' +
+                                '<b>' + feature.properties.name + '</b><br />' +
+                                '<b>' + "Active Players / Owners" + '</b><br />' +
+                                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                : 'Hover over a country </br>' +
+                                '<b>' + "Active Players / Owners" + '</b><br />');
+
+                        }
+                        else {
+
+                            if (propertyParams[1].includes("avg_play_time")) {
+                                this._div.innerHTML = (feature ?
+                                    '<i>' + property + '</i><br />' +
+                                    '<b>' + feature.properties.name + '</b><br />' +
+                                    '<b>' + "Active Players / Owners" + '</b><br />' +
+                                    '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                    ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                    : 'Hover over a country </br>' +
+                                    '<b>' + "Active Players / Owners" + '</b><br />');
+                            } else {
+                                this._div.innerHTML = (feature ?
+                                    '<i>' + property + '</i><br />' +
+                                    '<b>' + feature.properties.name + '</b><br />' +
+                                    '<b>' + "Active Players / Owners" + '</b><br />' +
+                                    '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                    ((getTime2w(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                    : 'Hover over a country </br>' +
+                                    '<b>' + "Active Players / Owners" + '</b><br />');
+                            }
+                        }
+                    }
+                } else {
+                    if (propertyParams.length == 2) {
+                        this._div.innerHTML = (feature ?
+                            '<b>' + feature.properties.name + '</b><br />' +
+                            '<b>' + "Active Players / Owners" + '</b><br />' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            ((numberAsPercent(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                            : 'Hover over a country </br>' +
+                            '<b>' + "Active Players / Owners" + '</b><br />');
+                    }
+                    else {
+                        if (propertyParams[0].includes("avg_play_time")) {
+                            this._div.innerHTML = (feature ?
+                                '<b>' + feature.properties.name + '</b><br />' +
+                                '<b>' + (dictionary[propertyParams[0]]) + '</b><br />' +
+                                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                ((getTime2w(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                : 'Hover over a country </br>' +
+                                '<b>' + dictionary[propertyParams[0]] + '</b><br />');
+                        } else {
+                            this._div.innerHTML = (feature ?
+                                '<b>' + feature.properties.name + '</b><br />' +
+                                '<b>' + (dictionary[propertyParams[0]]) + '</b><br />' +
+                                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(ChoroplethHandler.getProperties(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                                ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                : 'Hover over a country </br>' +
+                                '<b>' + dictionary[propertyParams[0]] + '</b><br />');
+                        }
+                    }
+                }
+            };
+            info.addTo(map);
+        },
+        highlightFeature: function (e) {
+            var layer = e.target;
+
+            layer.setStyle({
+                weight: 5,
+                color: '#666',
+                opacity: 1,
+                dashArray: '',
+                fillOpacity: 1
+            });
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+
+            var property = layer.feature.properties[propertyParams[0]];
+            if (type == "continents") {
+                for (var i = 0; i < groupedGeojson.length; i++) {
+                    if (groupedData[i].key != property) {
+                        groupedGeojson[i].setStyle({
+                            fillColor: '#d1d5d7',
+                            weight: 1,
+                            opacity: 0.1,
+                            color: '#ffffff',
+                            dashArray: '',
+                            fillOpacity: 0.1
+                        });
+                    }
+                    else {
+                        groupedGeojson[i].eachLayer(function (layer) {
+                            groupedGeojson[i].resetStyle(layer);
+                        });
+                    }
+                }
+            }
+
+            info.update(layer.feature);
+        },
+        // mouseout listener
+        resetHighlight: function (e) {
+            geojson.resetStyle(e.target);
+            info.update();
+        },
+        // zoom on click
+        zoomToFeature: function (e) {
+            map.fitBounds(e.target.getBounds());
+        },
+        // highlighting the country, listeners assigment
+        onEachFeature: function (feature, layer) {
+            layer.on({
+                mouseover: ChoroplethHandler.highlightFeature,
+                mouseout: ChoroplethHandler.resetHighlight,
+                click: ChoroplethHandler.zoomToFeature
+            });
+        },
+        legendInit: function () {
+            legend = L.control({ position: 'bottomright' });
+            legend.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info legend')
+                legend.update();
+                return this._div;
+            };
+            legend.update = function () {
+                if (type == "continents") {
+                    this._div.innerHTML = "";
+                    for (var i = 0; i < groupedData.length; i++) {
+                        this._div.innerHTML +=
+                            // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                            '<svg id="category' + i + '" width="10" height="10"><rect width="10" height="10"style="fill:' + baseColors(i) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            groupedData[i].key + '<br>';
+                    }
+                }
+                else if (type == "games") {
+                    var max = d3.max(chartData.features, function (d) {
+                        return ChoroplethHandler.getProperties(d);
+                    });
+                    var grades = new Array(), labels = [];
+                    var legendCategories = 10;
+                    var off = 0;
+                    if (type == "continents")
+                        off = 1;
+                    if (propertyParams.length - off == 2) {
+                        for (var i = 0; i <= legendCategories; i++) {
+                            grades[i] = i / legendCategories;
+                        }
+                        // grades = [0, (1 / 4), (2 / 4), (3 / 4), 1];
+                    }
+                    else if (propertyParams.length - off == 1) {
+                        for (var i = 0; i <= legendCategories; i++) {
+                            grades[i] = Math.floor((i / legendCategories) * max);
+                        }
+                        // grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)];
+                    }
+                    this._div.innerHTML = "";
+                    // loop through our density intervals and generate a label with a colored square for each interval
+                    for (var i = 0; i < grades.length; i++) {
+                        this._div.innerHTML +=
+                            // '<i style="background:' + color(grades[i]) + '"></i> ' +
+                            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                            ((propertyParams[off].includes("avg_play_time"))
+                                ? getTime2w(grades[i])
+                                : ((propertyParams.length - off == 2)
+                                    ? (numberAsPercent(grades[i]))
+                                    : (numberWithCommas(grades[i])))) + '<br>';
+                    }
+                }
+            }
+            legend.addTo(map);
+        },
+        controlsInit: function () {
+            controls = L.control({ position: 'bottomleft' });
+            controls.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info control');
+                var form; // holds form element
+                var radioBtn;
+
+                if (type == "continents") {
+                    function updateGroup(e) {
+                        propertyParams[0] = this.value;
+                        ChoroplethHandler.resetChartData();
+                        ChoroplethHandler.updateMap();
+                    }
+                    form = $("<form id='groupForm'></form>");
+                    // Continents
+                    radioBtn = $('<input type="radio" name="groupForm" value="continent">Continents</br>');
+                    radioBtn.on('change', updateGroup);
+                    radioBtn.prop("checked", true);
+                    form.append(radioBtn);
+                    // Economy Group
+                    radioBtn = $('<input type="radio" name="groupForm" value="economy">Economy Group</br>');
+                    radioBtn.on('change', updateGroup);
+                    form.append(radioBtn);
+                    // Income Group
+                    radioBtn = $('<input type="radio" name="groupForm" value="income_grp">Income Group</br>');
+                    radioBtn.on('change', updateGroup);
+                    form.append(radioBtn);
+                    form.appendTo(this._div);
+                }
+
+                form = $("<form id='gamesForm'></form>");
+                var gameIndex = 1; // 1-10
+                var property = "owners";
+                // games radio group
+                for (var i = 1; i <= fileData.games.length; i++) {
+                    radioBtn = $('<input type="radio" name="games" value=' + (i) + '>' + dictionary["game" + i] + '</br>');
+                    if (i == 1) {
+                        radioBtn.prop("checked", true);
+                    }
+                    if (type == "continents") {
+                        radioBtn.on('change', function (e) {
+                            gameIndex = this.value;
+                            propertyParams[1] = "game" + gameIndex + property;
+                            if (propertyParams.length == 3) {
+                                propertyParams[1] = "game" + gameIndex + "active_users";
+                                propertyParams[2] = "game" + gameIndex + "owners";
+                            }
+                            ChoroplethHandler.updateMap();
+                        });
+                    }
+                    else if (type == "games") {
+                        radioBtn.on('change', function (e) {
+                            gameIndex = this.value;
+                            propertyParams[0] = "game" + gameIndex + property;
+                            if (propertyParams.length == 2) {
+                                propertyParams[0] = "game" + gameIndex + "active_users";
+                                propertyParams[1] = "game" + gameIndex + "owners";
+                            }
+                            ChoroplethHandler.updateMap();
+                        });
+                    }
+                    form.append(radioBtn);
+                }
+                form.appendTo(this._div);
+                // property handler
+
+                function updateProperty(e) {
+                    property = this.value;
+                    if (type == "continents") {
+                        propertyParams[1] = "game" + gameIndex + property;
+                        propertyParams.splice(2, 1);
+                    } else if (type == "games") {
+                        propertyParams[0] = "game" + gameIndex + property;
+                        propertyParams.splice(1, 1);
+                    }
+                    ChoroplethHandler.resetChartData();
+                    ChoroplethHandler.updateMap();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // owners
+                radioBtn = $('<input type="radio" name="propertyForm" value="owners">Owners</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // active
+                radioBtn = $('<input type="radio" name="propertyForm" value="active_users">Active Users</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // average playtime
+                radioBtn = $('<input type="radio" name="propertyForm" value="avg_play_time">Average Playtime</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // active users to owners relation
+                radioBtn = $('<input type="radio" name="propertyForm">Active Users : Owners</br>');
+                radioBtn.on('change', function (e) {
+                    if (type == "continents") {
+                        propertyParams[1] = "game" + gameIndex + "active_users";
+                        propertyParams[2] = "game" + gameIndex + "owners";
+                    } else if (type == "games") {
+                        propertyParams[0] = "game" + gameIndex + "active_users";
+                        propertyParams[1] = "game" + gameIndex + "owners";
+                    }
+                    ChoroplethHandler.resetChartData();
+                    ChoroplethHandler.updateMap();
+                });
+                form.append(radioBtn);
+                form.appendTo(this._div);
+
+                controls.update();
+                return this._div;
+            };
+            controls.update = function () {
+
+            };
+            controls.addTo(map);
+        },
+        hide: function () {
+            $("#choropleth").hide();
+        },
+        show: function () {
+            $("#choropleth").show();
+        },
+        attachControls: function () {
+            ChoroplethHandler.legendInit();
+            ChoroplethHandler.infoInit();
+            ChoroplethHandler.controlsInit();
+        },
+        detachControls: function () {
+            if (info != null)
+                map.removeControl(info);
+            if (legend != null)
+                map.removeControl(legend);
+            if (controls != null)
+                map.removeControl(controls);
+        },
+        startBC: function (parameters) {
+            type = parameters.type;
+            propertyParams = null;
+            propertyParams = parameters.properties;
+            ChoroplethHandler.resetChartData();
+            if (map == null) {
+                map = L.map('choropleth');
+                ChoroplethHandler.draw();
+            }
+            else {
+                ChoroplethHandler.redraw();
+            }
+            ChoroplethHandler.attachControls();
+            ChoroplethHandler.updateMap();
+            ChoroplethHandler.show();
+        },
+        stopBC: function () {
+            ChoroplethHandler.hide();
+            ChoroplethHandler.detachControls();
+            $(".tooltip").remove();
         }
-        if (!color2) {
-            color2 = '#08306b';
-        }
-        color = d3.scaleLinear().domain([0, d3.max(fileData.features, function (d) {
-            return pickForCurrentProperty(d)
-        })])
-            .interpolate(d3.interpolateHcl)
-            .range([d3.rgb(color1), d3.rgb(color2)]);
-    }
-
-    function style(feature) {
-        return {
-            fillColor: color([pickForCurrentProperty(feature)]),
-            weight: 2,
-            opacity: 1,
-            color: 'black',
-            dashArray: '3',
-            fillOpacity: 1
-        };
-    }
-
-    // Info
-    var info = L.control();
-
-    info.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
-        this.update();
-        return this._div;
     };
-
-    // method that we will use to update the control based on feature properties passed
-    info.update = function (feature) {
-        this._div.innerHTML = (feature ?
-            '<b>' + feature.properties.name + '</b><br />' +
-            '<b>' + dictionary[currentProperty] + '</b><br />' +
-            '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(pickForCurrentProperty(feature)) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-            numberWithCommas(pickForCurrentProperty(feature)) + '<br />'
-            : 'Hover over a country </br>' +
-            '<b>' + dictionary[currentProperty] + '</b><br />');
-    };
-    info.addTo(map);
-
-    // mouseon listener
-    function highlightFeature(e) {
-        var layer = e.target;
-
-        layer.setStyle({
-            weight: 5,
-            color: '#666',
-            dashArray: '',
-            fillOpacity: 1
-        });
-
-        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-            layer.bringToFront();
-        }
-        info.update(layer.feature);
-    }
-    // mouseout listener
-    function resetHighlight(e) {
-        geojson.resetStyle(e.target);
-        info.update();
-    }
-    // zoom on click
-    function zoomToFeature(e) {
-        map.fitBounds(e.target.getBounds());
-    }
-    // highlighting the country, listeners assigment
-    function onEachFeature(feature, layer) {
-        layer.on({
-            mouseover: highlightFeature,
-            mouseout: resetHighlight,
-            click: zoomToFeature
-        });
-    }
-    // geojson binding
-    var geojson = L.geoJson(fileData, {
-        style: style,
-        onEachFeature: onEachFeature
-    }).addTo(map);
-    // pop-up dialog
-    geojson.eachLayer(function (layer) {
-        layer.bindPopup(layer.feature.properties.name);
-    });
-
-    // fit to the bounds of the geojson
-    map.fitBounds(geojson.getBounds());
-    // dont allow user to pan out of the world map view
-    var southWest = L.latLng(-89.98155760646617, -180),
-        northEast = L.latLng(89.99346179538875, 180);
-    var bounds = L.latLngBounds(southWest, northEast);
-    map.setMaxBounds(bounds);
-    map.on('drag', function () {
-        map.panInsideBounds(bounds, { animate: false });
-    });
-    map.setMinZoom(2);
-    map.setMaxZoom(6);
-
-    // legend
-    var legend = L.control({ position: 'bottomright' });
-    legend.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info legend')
-        legend.update();
-        return this._div;
-    };
-    legend.update = function () {
-        var max = d3.max(fileData.features, function (d) {
-            return pickForCurrentProperty(d)
-        });
-        var grades = [0, Math.floor((1 / 4) * max), Math.floor((2 / 4) * max), Math.floor((3 / 4) * max), Math.floor(max)],
-            labels = [];
-        this._div.innerHTML = "";
-        // loop through our density intervals and generate a label with a colored square for each interval
-        for (var i = 0; i < grades.length; i++) {
-            this._div.innerHTML +=
-                // '<i style="background:' + color(grades[i]) + '"></i> ' +
-                '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + color(grades[i]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                numberWithCommas(grades[i]) + '<br>';
-        }
-    }
-    legend.addTo(map);
-
-    function updateMap() {
-        regenColor();
-        info.update();
-        legend.update();
-        geojson.eachLayer(function (layer) {
-            geojson.resetStyle(layer);
-        });
-    }
-};
-
-function pickForCountry() {
-
-}
+}());
 
 var BarchartHandler = (function () {
     var type;
@@ -707,9 +1108,6 @@ var BarchartHandler = (function () {
                     return d.properties[propertyParams[0]];
                 }
             }
-            else if (type == "games") {
-                // TODO Unused
-            }
         },
         getXfunc: function () {
             var data = BarchartHandler.getData();
@@ -764,7 +1162,7 @@ var BarchartHandler = (function () {
                         tooltipdiv.transition()
                             .duration(200)
                             .style("opacity", .9);
-                        tooltipdiv.html(d.key + "<br/>" + getTime(d.value))
+                        tooltipdiv.html(d.key + "<br/>" + getTime2w(d.value))
                             .style("left", (d3.event.pageX) + "px")
                             .style("top", (d3.event.pageY - 28) + "px");
                     })
@@ -836,17 +1234,27 @@ var BarchartHandler = (function () {
                         if (propertyParams.length == 2) {
                             return (numberAsPercent(d.value));
                         }
-                        return (numberWithCommas(d.value));
+                        return ((propertyParams[0] == "avg_play_time")
+                            ? (getTime2w(d.value))
+                            : (numberWithCommas(d.value)));
                     })
                     .attr("x", function (d) {
                         var width = this.getBBox().width;
                         return Math.max(width, x(d.value));
                     });
             }
-            svg.append("g")
+            if(propertyParams[0] == "avg_play_time"){
+                svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%H:%M")));
+            }
+            else {
+                svg.append("g")
                 .attr("class", "x axis")
                 .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
                 .call(d3.axisBottom(x));
+            }
         },
         hide: function () {
             d3.select(barchartHTMLElem).selectAll("svg").remove();
@@ -1647,9 +2055,68 @@ var RadialAxisHandler = (function () {
                 chartData = transposeArray(games);
 
             } else if (type == "economy") {
+                var nestedData = d3.nest()
+                    .key(function (d) { return d.properties.name_long; })
+                    .rollup(function (v) {
+                        return [
+                            v[0].properties.money_spent,
+                            v[0].properties.gdp_md_est,
+                            parseInt(v[0].properties.economy.slice(0, 1)),
+                            parseInt(v[0].properties.income_grp.slice(0, 1))
+                        ];
+                    })
+                    .entries(fileData.features);
+
+                var axisNames = ["Money Spent (in USD)", "Average GDP (in millions of USD)",
+                    "Economy level", "Income Group"];
+
+                //get the polygon names
+                polygonName = [];
+
+                //for each continent
+                for (var country_num = 0; country_num < nestedData.length; country_num++) {
+                    polygonName.push(nestedData[country_num].key);
+                    // for each country
+                    var newCountryData = [];
+                    for (var property = 0; property < nestedData[country_num].value.length; property++) {
+                        newCountryData[property] = { "property": axisNames[property], "value": nestedData[country_num].value[property] }
+                    }
+                    nestedData[country_num] = newCountryData;
+                }
+                chartData = nestedData;
 
             } else if (type == "continents") {
+                var nestedData = d3.nest()
+                    .key(function (d) { return d.properties.continent; })
+                    .rollup(function (v) {
+                        return [
+                            d3.sum(v, function (d) { return d.properties.country_owners; }),
+                            d3.sum(v, function (d) { return d.properties.country_active; }),
+                            d3.sum(v, function (d) { return d.properties.avg_play_time * d.properties.country_active; }) / d3.sum(v, function (d) { return d.properties.country_active; }) / (60 * 14),
+                            d3.sum(v, function (d) { return d.properties.money_spent; }),
+                            d3.mean(v, function (d) { return d.properties.gdp_md_est; })
+                        ];
+                    })
+                    .entries(fileData.features);
 
+                //get the polygon names
+                polygonName = [];
+
+                var axisNames = ["Owners", "Active", "Average Play Time (in hours per day)",
+                    "Money Spent (in USD)", "Average GDP (in millions of USD)"];
+
+                //for each continent
+                for (var continent_num = 0; continent_num < nestedData.length; continent_num++) {
+                    polygonName.push(nestedData[continent_num].key);
+                    // for each country
+                    var newContinentData = [];
+                    for (var property = 0; property < nestedData[continent_num].value.length; property++) {
+                        newContinentData[property] = { "property": axisNames[property], "value": nestedData[continent_num].value[property] }
+                    }
+                    nestedData[continent_num] = newContinentData;
+                }
+
+                chartData = nestedData;
             }
         },
         getData: function () {
@@ -1737,7 +2204,7 @@ var RadialAxisHandler = (function () {
                     for (var j = 0; j < cfg.levels; j++) {
                         var levelFactor = cfg.factor * radius * ((j + 1) / cfg.levels);
                         g.selectAll(".levels")
-                            .data([1]) //dummy data
+                            .data([1])
                             .enter()
                             .append("svg:text")
                             .attr("x", function (d) { return levelFactor * (1 - cfg.factor * Math.sin(0)); })
@@ -1993,8 +2460,8 @@ var RadialAxisHandler = (function () {
         //     // control buttons detachment
         //     $(ctrlHTMLElem).remove();
         // },
-        startSBC: function (parameters) {
-            RadialAxisHandler.stopSBC();
+        start: function (parameters) {
+            RadialAxisHandler.stop();
             tooltipdiv = d3.select("body").append("div")
                 .attr("class", "tooltip")
                 .style("opacity", 0);
@@ -2006,7 +2473,7 @@ var RadialAxisHandler = (function () {
             // RadialAxisHandler.attachControls();
             window.addEventListener("resize", RadialAxisHandler.redraw);
         },
-        stopSBC: function () {
+        stop: function () {
             window.removeEventListener("resize", RadialAxisHandler.redraw);
             // RadialAxisHandler.detachControls();
             RadialAxisHandler.hide();
@@ -2189,6 +2656,175 @@ var LineGraphHandler = (function () {
     };
 }());
 
+var ParallelCoordinateHandler = (function () {
+    var type;
+    var propertyParams; // in case of games its a suffix and 
+    var parallelGraphHTMLElem = document.getElementById("parallelCoordinates");
+    // var ctrlHTMLElem;
+    var chartData = new Array();
+    var margin = { top: 50, right: 50, bottom: 50, left: 50 }
+    var width;
+    var height;
+    var svg;
+    var labelWidth = 0;
+    // var sorted = false;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            // gdp, economy, income, moneyspent
+            for (var i = 0; i < fileData.features.length; i++) {
+                var curFeature = fileData.features[i].properties;
+                var economy = parseInt(curFeature.economy.charAt(0));
+                var gdp_md_est = curFeature.gdp_md_est;
+                var income_grp = parseInt(curFeature.income_grp.charAt(0));
+                var money_spent = curFeature.money_spent;
+                chartData[i] =
+                    {
+                        "economy": economy,
+                        "gdp_md_est": gdp_md_est,
+                        "income_grp": income_grp,
+                        "money_spent": money_spent
+                    };
+            }
+        },
+        getData: function () {
+
+        },
+        redraw: function () {
+            ParallelCoordinateHandler.show();
+            // clear previous svg 
+            d3.select(parallelGraphHTMLElem).selectAll("svg").remove();
+            width = ((parallelGraphHTMLElem).clientWidth) - margin.left - margin.right;
+            height = ((parallelGraphHTMLElem).clientHeight) - margin.top - margin.bottom;
+
+            var x = d3.scalePoint().range([0, width]),
+                y = {},
+                dragging = {};
+
+            var line = d3.line(),
+                axis = d3.axisLeft(),
+                background,
+                foreground;
+
+            var svg = d3.select(parallelGraphHTMLElem).append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var dimensions = d3.keys(chartData[0]).filter(function (d) {
+                return d != "name" && (y[d] = d3.scaleLinear()
+                    .domain(d3.extent(chartData, function (p) { return +p[d]; }))
+                    .range([height, 0]));
+            });
+
+            // Extract the list of dimensions and create a scale for each.
+            x.domain(dimensions);
+
+            // Add grey background lines for context.
+            background = svg.append("g")
+                .attr("class", "background")
+                .selectAll("path")
+                .data(chartData)
+                .enter().append("path")
+                .attr("d", path);
+
+            // Add blue foreground lines for focus.
+            foreground = svg.append("g")
+                .attr("class", "foreground")
+                .selectAll("path")
+                .data(chartData)
+                .enter().append("path")
+                .attr("d", path);
+
+            // Add a group element for each dimension.
+            var g = svg.selectAll(".dimensions")
+                .data(dimensions)
+                .enter().append("g")
+                .attr("class", "dimensions")
+                .attr("transform", function (d) { return "translate(" + x(d) + ")"; })
+                .call(d3.drag()
+                    .subject(function (d) { return { x: x(d) }; })
+                    .on("start", function (d) {
+                        dragging[d] = x(d);
+                        background.attr("visibility", "hidden");
+                    })
+                    .on("drag", function (d) {
+                        dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+                        foreground.attr("d", path);
+                        dimensions.sort(function (a, b) { return position(a) - position(b); });
+                        x.domain(dimensions);
+                        g.attr("transform", function (d) { return "translate(" + position(d) + ")"; })
+                    })
+                    .on("end", function (d) {
+                        delete dragging[d];
+                        transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+                        transition(foreground).attr("d", path);
+                        background
+                            .attr("d", path)
+                            .transition()
+                            .delay(500)
+                            .duration(0)
+                            .attr("visibility", null);
+                    }));
+
+            // Add an axis and title.
+            g.append("g")
+                .attr("class", "axis")
+                .each(function (d) { d3.select(this).call(axis.scale(y[d])); })
+                .append("svg:text")
+                .style("text-anchor", "middle")
+                .attr("y", -9)
+                .text(function (d) { return d; });
+
+
+            function position(d) {
+                var v = dragging[d];
+                return v == null ? x(d) : v;
+            }
+
+            function transition(g) {
+                return g.transition().duration(500);
+            }
+
+            // Returns the path for a given data point.
+            function path(d) {
+                return line(dimensions.map(function (p) { return [position(p), y[p](d[p])]; }));
+            }
+
+        },
+        hide: function () {
+            if (parallelGraphHTMLElem != null) {
+
+                if (!parallelGraphHTMLElem.classList.contains("invisible")) {
+                    parallelGraphHTMLElem.classList.add("invisible");
+                }
+            }
+        },
+        show: function () {
+            if (parallelGraphHTMLElem != null) {
+                if (parallelGraphHTMLElem.classList.contains("invisible")) {
+                    parallelGraphHTMLElem.classList.remove("invisible");
+                }
+            }
+        },
+        start: function (parameters) {
+            ParallelCoordinateHandler.stop();
+            type = parameters.type;
+            propertyParams = parameters.properties;
+            parallelGraphHTMLElem = document.getElementById("parallelCoordinates");
+            ParallelCoordinateHandler.resetChartData();
+            ParallelCoordinateHandler.redraw();
+            window.addEventListener("resize", ParallelCoordinateHandler.redraw);
+        },
+        stop: function () {
+            ParallelCoordinateHandler.hide();
+            window.removeEventListener("resize", ParallelCoordinateHandler.redraw);
+        }
+    };
+}());
+
+
 var TreeMapHandler = (function () {
     var type;
     var propertyParams; // in case of games its a suffix and 
@@ -2239,7 +2875,7 @@ var TreeMapHandler = (function () {
 
             // $('#treeMap').width(opts.width).height(opts.height);
             $('#treeMap').width(width).height(height);
-            
+
             // var width = opts.width - margin.left - margin.right,
             //     height = opts.height - margin.top - margin.bottom - theight,
             var transitioning;
@@ -2254,11 +2890,18 @@ var TreeMapHandler = (function () {
                 .domain([0, height])
                 .range([0, height]);
 
+            // var treemap = d3.treemap()
+            //     .nodes(function (d, depth) { return depth ? null : d._children; })
+            //     .sort(function (a, b) { return a.properties[propertyParams[0]] - b.properties[propertyParams[0]]; })
+            //     .ratio(height / width * 0.5 * (1 + Math.sqrt(5)))
+            //     .round(false);
+
             var treemap = d3.treemap()
-                .children(function (d, depth) { return depth ? null : d._children; })
-                .sort(function (a, b) { return a.properties[propertyParams[0]] - b.properties[propertyParams[0]]; })
-                .ratio(height / width * 0.5 * (1 + Math.sqrt(5)))
-                .round(false);
+                //.tile(d3.treemapResquarify)
+                .size([width, height])
+                .round(false)
+                .paddingInner(1);
+
 
             svg = d3.select("#treeMap").append("svg")
                 .attr("width", width)
@@ -2282,11 +2925,16 @@ var TreeMapHandler = (function () {
                 .attr("y", 6 - margin.top)
                 .attr("dy", ".75em");
 
-            if (data instanceof Array) {
-                root = { key: rname, values: data };
-            } else {
-                root = data;
-            }
+            // if (data instanceof Array) {
+            //     root = { key: rname, values: data };
+            // } else {
+            //     root = data;
+            // }
+
+            root = d3.hierarchy(data, function children(d) {
+                return d.values;
+            })
+                .eachBefore(function (d) { d.id = (d.parent ? d.parent.id + "." : ""); });
 
             initialize(root);
             accumulate(root);
@@ -2312,8 +2960,8 @@ var TreeMapHandler = (function () {
             // the children being overwritten when layout is computed.
             function accumulate(d) {
                 return (d._children = d.values)
-                    ? d.properties[propertyParams[0]] = d.values.reduce(function (p, v) { return p + accumulate(v); }, 0)
-                    : d.properties[propertyParams[0]];
+                    ? d.value = d.values.reduce(function (p, v) { return p + accumulate(v); }, 0)
+                    : d.value = d.properties[propertyParams[0]];
             }
 
             // Compute the treemap layout recursively such that each group of siblings
@@ -2325,7 +2973,7 @@ var TreeMapHandler = (function () {
             // coordinates. This lets us use a viewport to zoom.
             function layout(d) {
                 if (d._children) {
-                    treemap.nodes({ _children: d._children });
+                    // treemap.nodes({ _children: d._children });
                     d._children.forEach(function (c) {
                         c.x = d.x + c.x * d.dx;
                         c.y = d.y + c.y * d.dy;
@@ -2364,7 +3012,7 @@ var TreeMapHandler = (function () {
                     .attr("class", "child")
                     .call(rect)
                     .append("title")
-                    .text(function (d) { return d.key + " (" + formatNumber(d.properties[propertyParams[0]]) + ")"; });
+                    .text(function (d) { return d.key + " (" + formatNumber(d.value) + ")"; });
                 children.append("text")
                     .attr("class", "ctext")
                     .text(function (d) { return d.key; })
@@ -2382,7 +3030,7 @@ var TreeMapHandler = (function () {
                     .text(function (d) { return d.key; });
                 t.append("tspan")
                     .attr("dy", "1.0em")
-                    .text(function (d) { return formatNumber(d.properties[propertyParams[0]]); });
+                    .text(function (d) { return formatNumber(d.value); });
                 t.call(text);
 
                 g.selectAll("rect")
@@ -2450,8 +3098,8 @@ var TreeMapHandler = (function () {
 
             function name(d) {
                 return d.parent
-                    ? name(d.parent) + " / " + d.key + " (" + formatNumber(d.properties[propertyParams[0]]) + ")"
-                    : d.key + " (" + formatNumber(d.properties[propertyParams[0]]) + ")";
+                    ? name(d.parent) + " / " + d.key + " (" + formatNumber(d.value) + ")"
+                    : d.key + " (" + formatNumber(d.value) + ")";
             }
 
         },
@@ -2490,3 +3138,4 @@ var TreeMapHandler = (function () {
         }
     };
 }());
+

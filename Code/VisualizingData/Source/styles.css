@@ -400,7 +400,7 @@ ul.sidebar-nav li a i.fa:hover{
 }
 
 /* <----- Leaflet Map ----->*/
-#mapid {
+#choropleth {
     
     position: absolute;
     height: 90%;
@@ -409,7 +409,7 @@ ul.sidebar-nav li a i.fa:hover{
 
 
 
-div#mapid {}
+div#choropleth {}
 /* Leaflet info box */
 .info {
     padding: 6px 8px;
@@ -440,17 +440,18 @@ div#mapid {}
     fill: #212529;
 }
 
-path {
-    stroke: steelblue;
-    stroke-width: 2;
-    fill: none;
-}
-
 .axis path, .axis line {
     fill: none;
     stroke: black;
     shape-rendering: crispEdges;
 }
+
+#linegraph path {
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+
 
 div.tooltip {	
     position: absolute;			
@@ -479,10 +480,45 @@ div.tooltip {
 .labels{
     fill: #0f3c4b;
 }
+/*--------- Parallel Coordinates------ */
+
+svg {
+    font: 10px sans-serif;
+}
+
+.background path {
+    fill: none;
+    stroke: #ddd;
+    shape-rendering: crispEdges;
+}
+
+.foreground path {
+    fill: none;
+    stroke: steelblue;
+}
+
+.brush .extent {
+    fill-opacity: .3;
+    stroke: #fff;
+    shape-rendering: crispEdges;
+}
+
+.axis line,
+.axis path {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+
+.axis text {
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+    cursor: move;
+    z-index: 1000;        ;
+}
 
 /*----------- treeMap from here ----------- */
 
-#treeMap{
+/* #treeMap{
     background: #fff;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -535,4 +571,4 @@ rect.parent {
 
 .children:hover rect.child {
   fill: #bbb;
-}
+} */
