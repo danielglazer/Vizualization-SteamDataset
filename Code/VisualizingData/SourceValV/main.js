@@ -370,7 +370,8 @@ function economyRadialAxis() {
     console.log(this);
 }
 function economyParallelCoordinates() {
-    console.log(this);
+    stopHandlers();
+    ParallelCoordinateHandler.start({ "type": "economy", "properties": [] });
 }
 // "Countries"' Listeners Handler functions
 function countriesBarChart() {
@@ -400,6 +401,7 @@ function stopHandlers() {
     BarchartHandler.stopBC();
     StackedBarchartHandler.stopSBC();
     ChoroplethHandler.stopBC();
+    ParallelCoordinateHandler.stop();
 }
 
 /**
@@ -2221,6 +2223,174 @@ var RadialAxisHandler = (function () {
             window.removeEventListener("resize", StackedBarchartHandler.redraw);
             StackedBarchartHandler.detachControls();
             $(tooltipdiv).remove();
+        }
+    };
+}());
+
+var ParallelCoordinateHandler = (function () {
+    var type;
+    var propertyParams; // in case of games its a suffix and 
+    var parallelGraphHTMLElem = document.getElementById("parallelCoordinates");
+    // var ctrlHTMLElem;
+    var chartData = new Array();
+    var margin = { top: 50, right: 50, bottom: 50, left: 50 }
+    var width;
+    var height;
+    var svg;
+    var labelWidth = 0;
+    // var sorted = false;
+    return {
+        // resets chartData, containing array/s with the data specifically for the current barchart parameters
+        resetChartData: function () {
+            // gdp, economy, income, moneyspent
+            for (var i = 0; i < fileData.features.length; i++) {
+                var curFeature = fileData.features[i].properties;
+                var economy = parseInt(curFeature.economy.charAt(0));
+                var gdp_md_est = curFeature.gdp_md_est;
+                var income_grp = parseInt(curFeature.income_grp.charAt(0));
+                var money_spent = curFeature.money_spent;
+                chartData[i] =
+                    {
+                        "economy": economy,
+                        "gdp_md_est": gdp_md_est,
+                        "income_grp": income_grp,
+                        "money_spent": money_spent
+                    };
+            }
+        },
+        getData: function () {
+
+        },
+        redraw: function () {
+            ParallelCoordinateHandler.show();
+            // clear previous svg 
+            d3.select(parallelGraphHTMLElem).selectAll("svg").remove();
+            width = ((parallelGraphHTMLElem).clientWidth) - margin.left - margin.right;
+            height = ((parallelGraphHTMLElem).clientHeight) - margin.top - margin.bottom;
+
+            var x = d3.scalePoint().range([0, width]),
+                y = {},
+                dragging = {};
+
+            var line = d3.line(),
+                axis = d3.axisLeft(),
+                background,
+                foreground;
+
+            var svg = d3.select(parallelGraphHTMLElem).append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var dimensions = d3.keys(chartData[0]).filter(function (d) {
+                return d != "name" && (y[d] = d3.scaleLinear()
+                    .domain(d3.extent(chartData, function (p) { return +p[d]; }))
+                    .range([height, 0]));
+            });
+
+            // Extract the list of dimensions and create a scale for each.
+            x.domain(dimensions);
+
+            // Add grey background lines for context.
+            background = svg.append("g")
+                .attr("class", "background")
+                .selectAll("path")
+                .data(chartData)
+                .enter().append("path")
+                .attr("d", path);
+
+            // Add blue foreground lines for focus.
+            foreground = svg.append("g")
+                .attr("class", "foreground")
+                .selectAll("path")
+                .data(chartData)
+                .enter().append("path")
+                .attr("d", path);
+
+            // Add a group element for each dimension.
+            var g = svg.selectAll(".dimensions")
+                .data(dimensions)
+                .enter().append("g")
+                .attr("class", "dimensions")
+                .attr("transform", function (d) { return "translate(" + x(d) + ")"; })
+                .call(d3.drag()
+                    .subject(function (d) { return { x: x(d) }; })
+                    .on("start", function (d) {
+                        dragging[d] = x(d);
+                        background.attr("visibility", "hidden");
+                    })
+                    .on("drag", function (d) {
+                        dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+                        foreground.attr("d", path);
+                        dimensions.sort(function (a, b) { return position(a) - position(b); });
+                        x.domain(dimensions);
+                        g.attr("transform", function (d) { return "translate(" + position(d) + ")"; })
+                    })
+                    .on("end", function (d) {
+                        delete dragging[d];
+                        transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+                        transition(foreground).attr("d", path);
+                        background
+                            .attr("d", path)
+                            .transition()
+                            .delay(500)
+                            .duration(0)
+                            .attr("visibility", null);
+                    }));
+
+            // Add an axis and title.
+            g.append("g")
+                .attr("class", "axis")
+                .each(function (d) { d3.select(this).call(axis.scale(y[d])); })
+                .append("text")
+                .style("text-anchor", "middle")
+                .attr("y", -9)
+                .text(function (d) { return d; });
+
+
+            function position(d) {
+                var v = dragging[d];
+                return v == null ? x(d) : v;
+            }
+
+            function transition(g) {
+                return g.transition().duration(500);
+            }
+
+            // Returns the path for a given data point.
+            function path(d) {
+                return line(dimensions.map(function (p) { return [position(p), y[p](d[p])]; }));
+            }
+
+        },
+        hide: function () {
+            if (parallelGraphHTMLElem != null) {
+
+                if (!parallelGraphHTMLElem.classList.contains("invisible")) {
+                    parallelGraphHTMLElem.classList.add("invisible");
+                }
+            }
+        },
+        show: function () {
+            if (parallelGraphHTMLElem != null) {
+                if (parallelGraphHTMLElem.classList.contains("invisible")) {
+                    parallelGraphHTMLElem.classList.remove("invisible");
+                }
+            }
+        },
+        start: function (parameters) {
+            ParallelCoordinateHandler.stop();
+            type = parameters.type;
+            propertyParams = parameters.properties;
+            parallelGraphHTMLElem = document.getElementById("parallelCoordinates");
+            ParallelCoordinateHandler.resetChartData();
+            ParallelCoordinateHandler.redraw();
+            window.addEventListener("resize", ParallelCoordinateHandler.redraw);
+        },
+        stop: function () {
+            ParallelCoordinateHandler.hide();
+            window.removeEventListener("resize", ParallelCoordinateHandler.redraw);
         }
     };
 }());
