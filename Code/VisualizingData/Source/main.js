@@ -1007,7 +1007,7 @@ var BarchartHandler = (function () {
     var svg = d3.select(barchartHTMLElem).append("svg");
     var labelWidth = 0;
     var sorted = false;
-    var fixedBarHeight = false;
+    var fixedBarHeight = true;
     var propertyMax = -1;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
@@ -1116,6 +1116,12 @@ var BarchartHandler = (function () {
                     .domain([0, 1])
                     .range([0, width - labelWidth]);
             }
+            // else if(propertyParams[0] == "avg_play_time"){
+            //     return d3.scaleLinear()
+            //TODO: change domain to a dummy date
+            //         .domain([0, 1])
+            //         .range([0, width - labelWidth]);
+            // }
             return d3.scaleLinear()
                 .domain([0, d3.max(data, function (d) { return d.value })])
                 .range([0, width - labelWidth]);
@@ -1243,17 +1249,17 @@ var BarchartHandler = (function () {
                         return Math.max(width, x(d.value));
                     });
             }
-            if(propertyParams[0] == "avg_play_time"){
+            if (propertyParams[0] == "avg_play_time") {
                 svg.append("g")
-                .attr("class", "x axis")
-                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
-                .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%H:%M")));
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                    .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%H:%M")));
             }
             else {
                 svg.append("g")
-                .attr("class", "x axis")
-                .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
-                .call(d3.axisBottom(x));
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(" + (labelWidth + margin.left) + "," + height + ")")
+                    .call(d3.axisBottom(x));
             }
         },
         hide: function () {
@@ -1302,7 +1308,9 @@ var BarchartHandler = (function () {
             var fixedBarHeightCtrl = ($("<input type='checkbox'>"))
                 .appendTo(($("<label>Fixed bar size</label>"))
                     .appendTo(jdiv));
-
+            if (fixedBarHeight) {
+                fixedBarHeightCtrl.prop("checked", true);
+            }
             fixedBarHeightCtrl.on('click', function (e) {
                 if (this.checked) {
                     fixedBarHeight = true;
@@ -1413,9 +1421,9 @@ var BarchartHandler = (function () {
             type = parameters.type;
             propertyParams = parameters.properties;
             barchartHTMLElem = document.getElementById("barChart");
+            BarchartHandler.attachControls();
             BarchartHandler.resetChartData();
             BarchartHandler.redraw();
-            BarchartHandler.attachControls();
             window.addEventListener("resize", BarchartHandler.redraw);
         },
         stopBC: function () {
@@ -1440,7 +1448,7 @@ var StackedBarchartHandler = (function () {
     var svg = d3.select(barchartHTMLElem).append("svg");
     var labelWidth = 0;
     var percent = false;
-    var fixedBarHeight = false;
+    var fixedBarHeight = true;
     var sorted = false;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
@@ -1897,7 +1905,9 @@ var StackedBarchartHandler = (function () {
             var fixedBarHeightCtrl = ($("<input type='checkbox'>"))
                 .appendTo(($("<label>Fixed bar size</label>"))
                     .appendTo(jdiv));
-
+            if (fixedBarHeight) {
+                fixedBarHeightCtrl.prop("checked", true);
+            }
             fixedBarHeightCtrl.on('click', function (e) {
                 if (this.checked) {
                     fixedBarHeight = true;
@@ -1963,9 +1973,9 @@ var StackedBarchartHandler = (function () {
             type = parameters.type;
             propertyParams = parameters.properties;
             barchartHTMLElem = document.getElementById("stackedBarChart");
+            StackedBarchartHandler.attachControls();
             StackedBarchartHandler.resetChartData();
             StackedBarchartHandler.redraw();
-            StackedBarchartHandler.attachControls();
             window.addEventListener("resize", StackedBarchartHandler.redraw);
         },
         stopSBC: function () {
