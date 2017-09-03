@@ -340,7 +340,6 @@ function createNavbarListeners() {
     Handler.addListener($("#Countries_BarChart")[0], "click", countriesBarChart, false);
     Handler.addListener($("#Countries_StackedBarChart")[0], "click", countriesStackedBarChart, false);
     //Continents
-    Handler.addListener($("#Continents_TreeMap")[0], "click", continentsTreeMap, false);
     Handler.addListener($("#Continents_Choropleth")[0], "click", continentsChoropleth, false);
     Handler.addListener($("#Continents_RadialAxis")[0], "click", continentsRadialAxis, false);
     //About
@@ -387,10 +386,6 @@ function countriesStackedBarChart() {
     StackedBarchartHandler.startSBC({ "type": "countries", "properties": ["addiction_cat", "1"] });
 }
 // "Continents"' Listeners Handler functions
-function continentsTreeMap() {
-    stopHandlers();
-    TreeMapHandler.startSBC({ "type": "continents", "properties": ["country_owners"] });
-}
 function continentsChoropleth() {
     stopHandlers();
     ChoroplethHandler.startBC({ "type": "continents", "properties": ["continent", "game1owners"] });
@@ -410,7 +405,6 @@ function stopHandlers() {
     ParallelCoordinateHandler.stop();
     RadialAxisHandler.stop();
     LineGraphHandler.stopSBC();
-    TreeMapHandler.stopSBC();
 }
 
 /**
@@ -2015,7 +2009,7 @@ var RadialAxisHandler = (function () {
     var chartData = new Array();
     var polygonName = new Array();
     var margin = { top: 10, right: 20, bottom: 20, left: 10 }
-    var tooltipdiv;
+    var tooltip;
     var width;
     var height;
     var svg = d3.select(radialGraphElem).append("svg");
@@ -2092,7 +2086,7 @@ var RadialAxisHandler = (function () {
                             v[0].properties.money_spent,
                             v[0].properties.gdp_md_est,
                             7 - parseInt(v[0].properties.economy.slice(0, 1)), // there are 7 economy groups
-                            6 - parseInt(v[0].properties.income_grp.slice(0, 1)) // there are 6 economy groups
+                            5 - parseInt(v[0].properties.income_grp.slice(0, 1)) // there are 5 economy groups
                         ];
                     })
                     .entries(fileData.features);
@@ -2154,7 +2148,7 @@ var RadialAxisHandler = (function () {
         },
         redraw: function () {
             RadialAxisHandler.show();
-            
+
             // clear previous svg 
             // svg.selectAll("*").remove(); // this may work
             d3.select(radialGraphElem).selectAll("svg").remove();
@@ -2172,7 +2166,7 @@ var RadialAxisHandler = (function () {
 
             // Radial Graph ----from here
             var RadarChart = {
-                draw: function (id, d, options) {
+                draw: function (id, d, polygonName) {
                     var cfg = {
                         radius: 5,
                         // w: Math.min(width, height),
@@ -2192,7 +2186,7 @@ var RadialAxisHandler = (function () {
                         ExtraWidthY: 100,
                         color: d3.scaleOrdinal().range(["#ff0000", "#0000ff"])
                     };
-
+                    var data = d;
                     var temp = transposeArray(chartData);
                     for (var i = 0; i < temp.length; i++) {
                         cfg.maxValue[i] = d3.max(temp[i], function (d) {
@@ -2212,7 +2206,6 @@ var RadialAxisHandler = (function () {
                         .append("g")
                         .attr("transform", "translate(" + cfg.TranslateX + "," + cfg.TranslateY + ")");
 
-                    var tooltip;
 
                     //Circular segments
                     for (var j = 0; j < cfg.levels; j++) {
@@ -2233,21 +2226,21 @@ var RadialAxisHandler = (function () {
                     }
 
                     //Text indicating at what % each level is
-                    for (var j = 0; j < cfg.levels; j++) {
-                        var levelFactor = cfg.factor * radius * ((j + 1) / cfg.levels);
-                        g.selectAll(".levels")
-                            .data([1])
-                            .enter()
-                            .append("svg:text")
-                            .attr("x", function (d) { return levelFactor * (1 - cfg.factor * Math.sin(0)); })
-                            .attr("y", function (d) { return levelFactor * (1 - cfg.factor * Math.cos(0)); })
-                            .attr("class", "legend")
-                            .style("font-family", "sans-serif")
-                            .style("font-size", "10px")
-                            .attr("transform", "translate(" + (cfg.w / 2 - levelFactor + cfg.ToRight) + ", " + (cfg.h / 2 - levelFactor) + ")")
-                            .attr("fill", "#737373")
-                            .text((j + 1) * 100 / cfg.levels);
-                    }
+                    // for (var j = 0; j < cfg.levels; j++) {
+                    //     var levelFactor = cfg.factor * radius * ((j + 1) / cfg.levels);
+                    //     g.selectAll(".levels")
+                    //         .data([1])
+                    //         .enter()
+                    //         .append("svg:text")
+                    //         .attr("x", function (d) { return levelFactor * (1 - cfg.factor * Math.sin(0)); })
+                    //         .attr("y", function (d) { return levelFactor * (1 - cfg.factor * Math.cos(0)); })
+                    //         .attr("class", "legend")
+                    //         .style("font-family", "sans-serif")
+                    //         .style("font-size", "10px")
+                    //         .attr("transform", "translate(" + (cfg.w / 2 - levelFactor + cfg.ToRight) + ", " + (cfg.h / 2 - levelFactor) + ")")
+                    //         .attr("fill", "#737373")
+                    //         .text((j + 1) * 100 / cfg.levels);
+                    // }
 
                     var series = 0;
 
@@ -2288,6 +2281,10 @@ var RadialAxisHandler = (function () {
                                 ]);
                             });
                         dataValues.push(dataValues[0]);
+                        var addToHtmlTemp = "";
+                        data[0].forEach(function (element) {
+                            addToHtmlTemp += element.property + ":" + numberWithCommas(Math.ceil(element.value)) + "<br/>"
+                        });
                         g.selectAll(".property")
                             .data([dataValues])
                             .enter()
@@ -2305,6 +2302,15 @@ var RadialAxisHandler = (function () {
                             .style("fill", function (j, i) { return cfg.color(series) })
                             .style("fill-opacity", cfg.opacityArea)
                             .on('mouseover', function (d) {
+                                tooltip.transition()
+                                    .duration(200)
+                                    .style("opacity", .9);
+                                tooltip.style("display", "block");
+                                tooltip.html(polygonName + "<br/>" +
+                                    addToHtmlTemp)
+                                    .style("left", (d3.event.pageX) + "px")
+                                    .style("top", (d3.event.pageY - 28) + "px");
+
                                 var z = "polygon." + d3.select(this).attr("class");
                                 g.selectAll("polygon")
                                     .transition(200)
@@ -2314,6 +2320,7 @@ var RadialAxisHandler = (function () {
                                     .style("fill-opacity", .7);
                             })
                             .on('mouseout', function () {
+                                tooltip.style("display", "none");
                                 g.selectAll("polygon")
                                     .transition(200)
                                     .style("fill-opacity", cfg.opacityArea);
@@ -2323,7 +2330,6 @@ var RadialAxisHandler = (function () {
                     series = 0;
 
                     dataValues = [];
-                    var tooltip = d3.select("body").append("div").attr("class", "toolTip");
                     d.forEach(function (y, x) {
                         g.selectAll(".nodes")
                             .data(y).enter()
@@ -2346,12 +2352,7 @@ var RadialAxisHandler = (function () {
                             .style("stroke-width", "2px")
                             .style("stroke", cfg.color(series)).style("fill-opacity", .9)
                             .on('mouseover', function (d) {
-                                console.log(d.property)
-                                tooltip
-                                    .style("left", d3.event.pageX - 40 + "px")
-                                    .style("top", d3.event.pageY - 80 + "px")
-                                    .style("display", "inline-block")
-                                    .html((d.property) + "<br><span>" + (d.value) + "</span>");
+                                console.log(d.property);
                             })
                             .on("mouseout", function (d) { tooltip.style("display", "none"); });
 
@@ -2361,7 +2362,9 @@ var RadialAxisHandler = (function () {
             };
 
             //Call function to draw the Radar chart
-            chartData.forEach(function(element){RadarChart.draw("#RadialGraph",[element])});
+            chartData.forEach(function (element, index) {
+                RadarChart.draw("#RadialGraph", [element], polygonName[index])
+            });
             // RadarChart.draw("#RadialGraph", chartData);
         },
         hide: function () {
@@ -2494,11 +2497,9 @@ var RadialAxisHandler = (function () {
         // },
         start: function (parameters) {
             RadialAxisHandler.stop();
-            tooltipdiv = d3.select("body").append("div")
-                .attr("class", "tooltip")
-                .style("opacity", 0);
             type = parameters.type;
             propertyParams = parameters.properties;
+            tooltip = d3.select("body").append("div").attr("class", "toolTip").style("opacity", 0);
             radialGraphElem = document.getElementById("RadialGraph");
             RadialAxisHandler.resetChartData();
             RadialAxisHandler.redraw();
@@ -2509,7 +2510,7 @@ var RadialAxisHandler = (function () {
             window.removeEventListener("resize", RadialAxisHandler.redraw);
             // RadialAxisHandler.detachControls();
             RadialAxisHandler.hide();
-            $(tooltipdiv).remove();
+            $(tooltip).remove();
         }
     };
 }());
@@ -2804,6 +2805,7 @@ var ParallelCoordinateHandler = (function () {
     var height;
     var svg;
     var labelWidth = 0;
+    var color;
     // var sorted = false;
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
@@ -2811,9 +2813,9 @@ var ParallelCoordinateHandler = (function () {
             // gdp, economy, income, moneyspent
             for (var i = 0; i < fileData.features.length; i++) {
                 var curFeature = fileData.features[i].properties;
-                var economy = parseInt(curFeature.economy.charAt(0));
+                var economy = 7 - parseInt(curFeature.economy.charAt(0));
                 var gdp_md_est = curFeature.gdp_md_est;
-                var income_grp = parseInt(curFeature.income_grp.charAt(0));
+                var income_grp = 5 - parseInt(curFeature.income_grp.charAt(0));
                 var money_spent = curFeature.money_spent;
                 chartData[i] =
                     {
@@ -2823,6 +2825,7 @@ var ParallelCoordinateHandler = (function () {
                         "money_spent": money_spent
                     };
             }
+            color = d3.scaleOrdinal(d3.schemeCategory10);
         },
         getData: function () {
 
@@ -2850,9 +2853,24 @@ var ParallelCoordinateHandler = (function () {
                 .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
             var dimensions = d3.keys(chartData[0]).filter(function (d) {
-                return d != "name" && (y[d] = d3.scaleLinear()
+                if(d == "gdp_md_est"){
+                    (y[d] = d3.scalePow()
+                    .exponent(0.4)
                     .domain(d3.extent(chartData, function (p) { return +p[d]; }))
-                    .range([height, 0]));
+                    .range([height, 0]));    
+                    return d != "name" && (y[d]);
+                } else if(d == "money_spent"){
+                    (y[d] = d3.scalePow()
+                    .exponent(0.5)
+                    .domain(d3.extent(chartData, function (p) { return +p[d]; }))
+                    .range([height, 0]));    
+                    return d != "name" && (y[d]);
+                } else{
+                    (y[d] = d3.scaleLinear()
+                    .domain(d3.extent(chartData, function (p) { return +p[d]; }))
+                    .range([height, 0]));    
+                    return d != "name" && (y[d]);
+                }
             });
 
             // Extract the list of dimensions and create a scale for each.
@@ -2872,7 +2890,10 @@ var ParallelCoordinateHandler = (function () {
                 .selectAll("path")
                 .data(chartData)
                 .enter().append("path")
-                .attr("d", path);
+                .attr("d", path)
+                .style("stroke", function (d) { // Add dynamically
+                    return d.color = color(d.income_grp);
+                });
 
             // Add a group element for each dimension.
             var g = svg.selectAll(".dimensions")
@@ -2960,319 +2981,3 @@ var ParallelCoordinateHandler = (function () {
         }
     };
 }());
-
-
-var TreeMapHandler = (function () {
-    var type;
-    var propertyParams; // in case of games its a suffix and 
-    var graphElem = document.getElementById("treeMap");
-    // var ctrlHTMLElem;
-    var chartData = new Array();
-    var polygonName = new Array();
-    var margin = { top: 10, right: 20, bottom: 20, left: 100 }
-    var tooltipdiv;
-    var width;
-    var height;
-    var svg = d3.select(graphElem).append("svg");
-    var labelWidth = 0;
-    // var sorted = false;
-    return {
-        // resets chartData, containing array/s with the data specifically for the current barchart parameters
-        resetChartData: function () {
-            if (type == "continents") {
-                // nest the countries to continents and subregions
-                var nestedData = d3.nest()
-                    .key(function (d) { return d.properties["continent"]; })
-                    .key(function (d) { return d.properties["subregion"]; })
-                    .entries(fileData.features);
-                chartData = nestedData;
-            }
-        },
-        getData: function () {
-            return chartData;
-        },
-        redraw: function () {
-            TreeMapHandler.show();
-            // clear previous svg 
-            // svg.selectAll("*").remove(); // this may work
-            d3.select(graphElem).selectAll("svg").remove();
-            // if resize happened - need to recalc 'width' and 'height'
-            width = (0.9) * ((graphElem).clientWidth) - margin.left - margin.right;
-            height = (0.9) * ((graphElem).clientHeight) - margin.top - margin.bottom;
-            // and recalc the X and Y functions, which depend on 'width' and 'height'
-
-            // TreeMap from here
-            var data = chartData;
-
-            var root,
-                // opts = $.extend(true, {}, defaults, o),
-                formatNumber = d3.format(",d"),
-                rname = "World",
-                theight = 36 + 16;
-
-            // $('#treeMap').width(opts.width).height(opts.height);
-            $('#treeMap').width(width).height(height);
-
-            // var width = opts.width - margin.left - margin.right,
-            //     height = opts.height - margin.top - margin.bottom - theight,
-            var transitioning;
-
-            var color = d3.scaleOrdinal(d3.schemeCategory20);
-
-            var x = d3.scaleLinear()
-                .domain([0, width])
-                .range([0, width]);
-
-            var y = d3.scaleLinear()
-                .domain([0, height])
-                .range([0, height]);
-
-            // var treemap = d3.treemap()
-            //     .nodes(function (d, depth) { return depth ? null : d._children; })
-            //     .sort(function (a, b) { return a.properties[propertyParams[0]] - b.properties[propertyParams[0]]; })
-            //     .ratio(height / width * 0.5 * (1 + Math.sqrt(5)))
-            //     .round(false);
-
-            var treemap = d3.treemap()
-                //.tile(d3.treemapResquarify)
-                .size([width, height])
-                .round(false)
-                .paddingInner(1);
-
-
-            svg = d3.select("#treeMap").append("svg")
-                .attr("width", width)
-                .attr("height", height)
-                .style("margin-left", -margin.left + "px")
-                .style("margin.right", -margin.right + "px")
-                .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .style("shape-rendering", "crispEdges");
-
-            var grandparent = svg.append("g")
-                .attr("class", "grandparent");
-
-            grandparent.append("rect")
-                .attr("y", -margin.top)
-                .attr("width", width)
-                .attr("height", margin.top);
-
-            grandparent.append("text")
-                .attr("x", 6)
-                .attr("y", 6 - margin.top)
-                .attr("dy", ".75em");
-
-            // if (data instanceof Array) {
-            //     root = { key: rname, values: data };
-            // } else {
-            //     root = data;
-            // }
-
-            root = d3.hierarchy(data, function children(d) {
-                return d.values;
-            })
-                .eachBefore(function (d) { d.id = (d.parent ? d.parent.id + "." : ""); });
-
-            initialize(root);
-            accumulate(root);
-            layout(root);
-            console.log(root);
-            display(root);
-
-            if (window.parent !== window) {
-                var myheight = document.documentElement.scrollHeight || document.body.scrollHeight;
-                window.parent.postMessage({ height: myheight }, '*');
-            }
-
-            function initialize(root) {
-                root.x = root.y = 0;
-                root.dx = width;
-                root.dy = height;
-                root.depth = 0;
-            }
-
-            // Aggregate the values for internal nodes. This is normally done by the
-            // treemap layout, but not here because of our custom implementation.
-            // We also take a snapshot of the original children (_children) to avoid
-            // the children being overwritten when layout is computed.
-            function accumulate(d) {
-                return (d._children = d.values)
-                    ? d.value = d.values.reduce(function (p, v) { return p + accumulate(v); }, 0)
-                    : d.value = d.properties[propertyParams[0]];
-            }
-
-            // Compute the treemap layout recursively such that each group of siblings
-            // uses the same size (1×1) rather than the dimensions of the parent cell.
-            // This optimizes the layout for the current zoom state. Note that a wrapper
-            // object is created for the parent node for each group of siblings so that
-            // the parent’s dimensions are not discarded as we recurse. Since each group
-            // of sibling was laid out in 1×1, we must rescale to fit using absolute
-            // coordinates. This lets us use a viewport to zoom.
-            function layout(d) {
-                if (d._children) {
-                    // treemap.nodes({ _children: d._children });
-                    d._children.forEach(function (c) {
-                        c.x = d.x + c.x * d.dx;
-                        c.y = d.y + c.y * d.dy;
-                        c.dx *= d.dx;
-                        c.dy *= d.dy;
-                        c.parent = d;
-                        layout(c);
-                    });
-                }
-            }
-
-            function display(d) {
-                grandparent
-                    .datum(d.parent)
-                    .on("click", transition)
-                    .select("text")
-                    .text(name(d));
-
-                var g1 = svg.insert("g", ".grandparent")
-                    .datum(d)
-                    .attr("class", "depth");
-
-                var g = g1.selectAll("g")
-                    .data(d._children)
-                    .enter().append("g");
-
-                g.filter(function (d) { return d._children; })
-                    .classed("children", true)
-                    .on("click", transition);
-
-                var children = g.selectAll(".child")
-                    .data(function (d) { return d._children || [d]; })
-                    .enter().append("g");
-
-                children.append("rect")
-                    .attr("class", "child")
-                    .call(rect)
-                    .append("title")
-                    .text(function (d) { return d.key + " (" + formatNumber(d.value) + ")"; });
-                children.append("text")
-                    .attr("class", "ctext")
-                    .text(function (d) { return d.key; })
-                    .call(text2);
-
-                g.append("rect")
-                    .attr("class", "parent")
-                    .call(rect);
-
-                var t = g.append("text")
-                    .attr("class", "ptext")
-                    .attr("dy", ".75em")
-
-                t.append("tspan")
-                    .text(function (d) { return d.key; });
-                t.append("tspan")
-                    .attr("dy", "1.0em")
-                    .text(function (d) { return formatNumber(d.value); });
-                t.call(text);
-
-                g.selectAll("rect")
-                    .style("fill", function (d) { return color(d.key); });
-
-                function transition(d) {
-                    if (transitioning || !d) return;
-                    transitioning = true;
-
-                    var g2 = display(d),
-                        t1 = g1.transition().duration(750),
-                        t2 = g2.transition().duration(750);
-
-                    // Update the domain only after entering new elements.
-                    x.domain([d.x, d.x + d.dx]);
-                    y.domain([d.y, d.y + d.dy]);
-
-                    // Enable anti-aliasing during the transition.
-                    svg.style("shape-rendering", null);
-
-                    // Draw child nodes on top of parent nodes.
-                    svg.selectAll(".depth").sort(function (a, b) { return a.depth - b.depth; });
-
-                    // Fade-in entering text.
-                    g2.selectAll("text").style("fill-opacity", 0);
-
-                    // Transition to the new view.
-                    t1.selectAll(".ptext").call(text).style("fill-opacity", 0);
-                    t1.selectAll(".ctext").call(text2).style("fill-opacity", 0);
-                    t2.selectAll(".ptext").call(text).style("fill-opacity", 1);
-                    t2.selectAll(".ctext").call(text2).style("fill-opacity", 1);
-                    t1.selectAll("rect").call(rect);
-                    t2.selectAll("rect").call(rect);
-
-                    // Remove the old node when the transition is finished.
-                    t1.remove().each("end", function () {
-                        svg.style("shape-rendering", "crispEdges");
-                        transitioning = false;
-                    });
-                }
-
-                return g;
-            }
-
-            function text(text) {
-                text.selectAll("tspan")
-                    .attr("x", function (d) { return x(d.x) + 6; })
-                text.attr("x", function (d) { return x(d.x) + 6; })
-                    .attr("y", function (d) { return y(d.y) + 6; })
-                    .style("opacity", function (d) { return this.getComputedTextLength() < x(d.x + d.dx) - x(d.x) ? 1 : 0; });
-            }
-
-            function text2(text) {
-                text.attr("x", function (d) { return x(d.x + d.dx) - this.getComputedTextLength() - 6; })
-                    .attr("y", function (d) { return y(d.y + d.dy) - 6; })
-                    .style("opacity", function (d) { return this.getComputedTextLength() < x(d.x + d.dx) - x(d.x) ? 1 : 0; });
-            }
-
-            function rect(rect) {
-                rect.attr("x", function (d) { return x(d.x); })
-                    .attr("y", function (d) { return y(d.y); })
-                    .attr("width", function (d) { return x(d.x + d.dx) - x(d.x); })
-                    .attr("height", function (d) { return y(d.y + d.dy) - y(d.y); });
-            }
-
-            function name(d) {
-                return d.parent
-                    ? name(d.parent) + " / " + d.key + " (" + formatNumber(d.value) + ")"
-                    : d.key + " (" + formatNumber(d.value) + ")";
-            }
-
-        },
-        hide: function () {
-
-            d3.select(graphElem).selectAll("svg").remove();
-            if (graphElem != null) {
-                if (!graphElem.classList.contains("invisible")) {
-                    graphElem.classList.add("invisible");
-                }
-            }
-        },
-        show: function () {
-            if (graphElem != null) {
-                if (graphElem.classList.contains("invisible")) {
-                    graphElem.classList.remove("invisible");
-                }
-            }
-        },
-        startSBC: function (parameters) {
-            TreeMapHandler.stopSBC();
-            tooltipdiv = d3.select("body").append("div")
-                .attr("class", "tooltip")
-                .style("opacity", 0);
-            type = parameters.type;
-            propertyParams = parameters.properties;
-            graphElem = document.getElementById("lineGraph");
-            TreeMapHandler.resetChartData();
-            TreeMapHandler.redraw();
-            window.addEventListener("resize", TreeMapHandler.redraw);
-        },
-        stopSBC: function () {
-            window.removeEventListener("resize", TreeMapHandler.redraw);
-            TreeMapHandler.hide();
-            $(tooltipdiv).remove();
-        }
-    };
-}());
-
