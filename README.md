@@ -27,7 +27,9 @@ One can review our source code and also see the derived data that was extracted
 ## Authors
 
 * Developers:
+
   Daniel Glazer
+  
   Valentin Volovik
 
 ## License
