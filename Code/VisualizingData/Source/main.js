@@ -679,7 +679,7 @@ var ChoroplethHandler = (function () {
                                     '<b>' + feature.properties.name + '</b><br />' +
                                     '<b>' + "Active Players / Owners" + '</b><br />' +
                                     '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                                    ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                    ((getTime2w(ChoroplethHandler.getProperties(feature)))) + '<br />'
                                     : 'Hover over a country </br>' +
                                     '<b>' + "Active Players / Owners" + '</b><br />');
                             } else {
@@ -688,7 +688,7 @@ var ChoroplethHandler = (function () {
                                     '<b>' + feature.properties.name + '</b><br />' +
                                     '<b>' + "Active Players / Owners" + '</b><br />' +
                                     '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
-                                    ((getTime2w(ChoroplethHandler.getProperties(feature)))) + '<br />'
+                                    ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
                                     : 'Hover over a country </br>' +
                                     '<b>' + "Active Players / Owners" + '</b><br />');
                             }
@@ -1558,7 +1558,8 @@ var StackedBarchartHandler = (function () {
                             for (var i = 0; i < games.length; i++) {
                                 if (sum == 0)
                                     games[i][j] = 0;
-                                games[i][j] = games[i][j] / sum; // percent value
+                                else
+                                    games[i][j] = games[i][j] / sum; // percent value
                             }
                         }
                     }
@@ -1616,7 +1617,8 @@ var StackedBarchartHandler = (function () {
                             for (var i = 0; i < countries.length; i++) {
                                 if (sum == 0)
                                     countries[i][j] = 0;
-                                countries[i][j] = countries[i][j] / sum; // percent value
+                                else
+                                    countries[i][j] = countries[i][j] / sum; // percent value
                             }
                         }
                     }
@@ -1683,7 +1685,8 @@ var StackedBarchartHandler = (function () {
                             for (var i = 0; i < countries.length; i++) {
                                 if (sum == 0)
                                     countries[i][j] = 0;
-                                countries[i][j] = countries[i][j] / sum; // percent value
+                                else
+                                    countries[i][j] = countries[i][j] / sum; // percent value
                             }
                         }
                     }
@@ -1703,11 +1706,26 @@ var StackedBarchartHandler = (function () {
 
             var transposedChartData = transposeArray(chartData);
             if (sorted) {
-                transposedChartData.sort(function (a, b) {
-                    var valueA = a[types.length - 1].value[1]; // ignore upper and lowercase
-                    var valueB = b[types.length - 1].value[1]; // ignore upper and lowercase
-                    return valueA - valueB;
-                });
+                var sortfunc;
+                if (percent) {
+                    sortfunc = function (a, b) {
+                        var valueA = a[types.length - 1].value[1] - a[types.length - 1].value[0]; // ignore upper and lowercase
+                        var valueB = b[types.length - 1].value[1] - b[types.length - 1].value[0]; // ignore upper and lowercase
+                        if (valueA == valueB) {
+                            var valueA = a[types.length - 2].value[1] - a[types.length - 2].value[0]; // ignore upper and lowercase
+                            var valueB = b[types.length - 2].value[1] - b[types.length - 2].value[0]; // ignore upper and lowercase      
+                        }
+                        return valueA - valueB;
+                    }
+                }
+                else {
+                    sortfunc = function (a, b) {
+                        var valueA = a[types.length - 1].value[1]; // ignore upper and lowercase
+                        var valueB = b[types.length - 1].value[1]; // ignore upper and lowercase
+                        return valueA - valueB;
+                    }
+                }
+                transposedChartData.sort(sortfunc);
             }
             else {
                 transposedChartData.sort(function (a, b) {

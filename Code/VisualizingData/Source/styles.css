@@ -469,11 +469,11 @@ div.tooltip {
 .countriesControl {
     position: fixed;
     float:right;
-    top:0;
+    top:10%;
     right:0;
     z-index:300;
     min-width:0;
-    width: 10%;
+    width: 8%;
     font-size: x-small;
 }
 
