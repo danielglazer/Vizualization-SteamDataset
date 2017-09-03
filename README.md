@@ -24,14 +24,11 @@ One can review our source code and also see the derived data that was extracted
 (from both the Steam Dataset and the GeoJSON) and used for the visualizations.
 
 
-
-
-
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+* Developers:
+  Daniel Glazer
+  Valentin Volovik
 
 ## License
 
@@ -39,9 +36,7 @@ This project is private and so does the licence.
 
 ## Acknowledgments
 
-* Hat tip to anyone who's code was used
-* Inspiration
-* etc
+* Speacial thanks to Mike Bostock for the contribution to the D3
 
 
 
