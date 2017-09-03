@@ -677,20 +677,20 @@ var ChoroplethHandler = (function () {
                                 this._div.innerHTML = (feature ?
                                     '<i>' + property + '</i><br />' +
                                     '<b>' + feature.properties.name + '</b><br />' +
-                                    '<b>' + "Active Players / Owners" + '</b><br />' +
+                                    '<b>' + dictionary[propertyParams[1]] + '</b><br />' +
                                     '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                                     ((getTime2w(ChoroplethHandler.getProperties(feature)))) + '<br />'
                                     : 'Hover over a country </br>' +
-                                    '<b>' + "Active Players / Owners" + '</b><br />');
+                                    '<b>' + dictionary[propertyParams[1]] + '</b><br />');
                             } else {
                                 this._div.innerHTML = (feature ?
                                     '<i>' + property + '</i><br />' +
                                     '<b>' + feature.properties.name + '</b><br />' +
-                                    '<b>' + "Active Players / Owners" + '</b><br />' +
+                                    '<b>' + dictionary[propertyParams[1]] + '</b><br />' +
                                     '<svg width="10" height="10"><rect width="10" height="10"style="fill:' + groupedColors[i]([ChoroplethHandler.getProperties(feature)]) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
                                     ((numberWithCommas(ChoroplethHandler.getProperties(feature)))) + '<br />'
                                     : 'Hover over a country </br>' +
-                                    '<b>' + "Active Players / Owners" + '</b><br />');
+                                    '<b>' + dictionary[propertyParams[1]] + '</b><br />');
                             }
                         }
                     }
@@ -1709,18 +1709,11 @@ var StackedBarchartHandler = (function () {
                 var sortfunc;
                 if (percent) {
                     sortfunc = function (a, b) {
-                        // var valueA = a[types.length - 1].value[1] - a[types.length - 1].value[0]; // ignore upper and lowercase
-                        // var valueB = b[types.length - 1].value[1] - b[types.length - 1].value[0]; // ignore upper and lowercase
-                        // if (valueA == valueB) {
-                        //     valueA = a[types.length - 2].value[1] - a[types.length - 2].value[0]; // ignore upper and lowercase
-                        //     valueB = b[types.length - 2].value[1] - b[types.length - 2].value[0]; // ignore upper and lowercase      
-                         
-                        // }
                         var valueA, valueB;
-                        for (var i = types.length - 1; i >= 0; i--){
+                        for (var i = types.length - 1; i >= 0; i--) {
                             valueA = a[i].value[1] - a[i].value[0];
                             valueB = b[i].value[1] - b[i].value[0];
-                            if(valueA != valueB)
+                            if (valueA != valueB)
                                 return valueA - valueB;
                         }
                         return 0;
@@ -2013,6 +2006,7 @@ var StackedBarchartHandler = (function () {
     };
 }());
 
+
 var RadialAxisHandler = (function () {
     var type;
     var propertyParams; // in case of games its a suffix and 
@@ -2097,8 +2091,8 @@ var RadialAxisHandler = (function () {
                         return [
                             v[0].properties.money_spent,
                             v[0].properties.gdp_md_est,
-                            parseInt(v[0].properties.economy.slice(0, 1)),
-                            parseInt(v[0].properties.income_grp.slice(0, 1))
+                            7 - parseInt(v[0].properties.economy.slice(0, 1)), // there are 7 economy groups
+                            6 - parseInt(v[0].properties.income_grp.slice(0, 1)) // there are 6 economy groups
                         ];
                     })
                     .entries(fileData.features);
@@ -2160,6 +2154,7 @@ var RadialAxisHandler = (function () {
         },
         redraw: function () {
             RadialAxisHandler.show();
+            
             // clear previous svg 
             // svg.selectAll("*").remove(); // this may work
             d3.select(radialGraphElem).selectAll("svg").remove();
@@ -2168,11 +2163,11 @@ var RadialAxisHandler = (function () {
             height = (0.9) * ((radialGraphElem).clientHeight) - margin.top - margin.bottom;
             // and recalc the X and Y functions, which depend on 'width' and 'height'
             // position the canvas
-            svg = d3.select(radialGraphElem).append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            // svg = d3.select(radialGraphElem).append("svg")
+            //     .attr("width", width + margin.left + margin.right)
+            //     .attr("height", height + margin.top + margin.bottom)
+            //     .append("g")
+            //     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 
             // Radial Graph ----from here
@@ -2180,8 +2175,10 @@ var RadialAxisHandler = (function () {
                 draw: function (id, d, options) {
                     var cfg = {
                         radius: 5,
-                        w: Math.min(width, height),
-                        h: Math.min(width, height),
+                        // w: Math.min(width, height),
+                        // h: Math.min(width, height),
+                        w: 256,
+                        h: 256,
                         factor: 1,
                         factorLegend: .85,
                         levels: 3,
@@ -2196,7 +2193,7 @@ var RadialAxisHandler = (function () {
                         color: d3.scaleOrdinal().range(["#ff0000", "#0000ff"])
                     };
 
-                    var temp = transposeArray(d);
+                    var temp = transposeArray(chartData);
                     for (var i = 0; i < temp.length; i++) {
                         cfg.maxValue[i] = d3.max(temp[i], function (d) {
                             return d.value;
@@ -2207,7 +2204,6 @@ var RadialAxisHandler = (function () {
                     var total = allAxis.length;
                     var radius = cfg.factor * Math.min(cfg.w / 2, cfg.h / 2);
                     var Format = d3.format('%');
-                    d3.select(id).select("svg").remove();
 
                     var g = d3.select(id)
                         .append("svg")
@@ -2365,8 +2361,8 @@ var RadialAxisHandler = (function () {
             };
 
             //Call function to draw the Radar chart
-
-            RadarChart.draw("#RadialGraph", chartData);
+            chartData.forEach(function(element){RadarChart.draw("#RadialGraph",[element])});
+            // RadarChart.draw("#RadialGraph", chartData);
         },
         hide: function () {
 
@@ -2522,7 +2518,7 @@ var LineGraphHandler = (function () {
     var type;
     var propertyParams; // in case of games its a suffix and 
     var graphElem = document.getElementById("lineGraph");
-    // var ctrlHTMLElem;
+    var ctrlHTMLElem;
     var chartData = new Array();
     var polygonName = new Array();
     var margin = { top: 10, right: 20, bottom: 20, left: 100 }
@@ -2530,8 +2526,11 @@ var LineGraphHandler = (function () {
     var width;
     var height;
     var svg = d3.select(graphElem).append("svg");
+    var scatter = false;
     var labelWidth = 0;
-    // var sorted = false;
+    var color;
+    var legenddiv;
+
     return {
         // resets chartData, containing array/s with the data specifically for the current barchart parameters
         resetChartData: function () {
@@ -2541,6 +2540,18 @@ var LineGraphHandler = (function () {
                     .key(function (d) { return d.properties[propertyParams[0]]; })
                     .entries(fileData.features);
 
+                nestedData.sort(function (a, b) {
+                    var keyA = a.key.toUpperCase(); // ignore upper and lowercase
+                    var keyB = b.key.toUpperCase(); // ignore upper and lowercase
+                    if (keyA < keyB) {
+                        return -1;
+                    }
+                    if (keyA > keyB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                })
 
                 nestedData.forEach(function (d) {
                     d.values.sort(function (a, b) {
@@ -2580,15 +2591,7 @@ var LineGraphHandler = (function () {
                 .range([height, 0]);
 
             // Define the axes
-            // var xAxis = d3.svg.axis().scale(x)
-            //     .orient("bottom");
-
-
             var xAxis = d3.axisBottom(x);
-
-            // var yAxis = d3.svg.axis().scale(y)
-            //     .orient("left");
-
             var yAxis = d3.axisLeft(y);
 
             // Define the line
@@ -2605,29 +2608,46 @@ var LineGraphHandler = (function () {
             x.domain(d3.extent(fileData.features, function (d) { return d.properties.gdp_md_est; }));
             y.domain([0, d3.max(fileData.features, function (d) { return d.properties.money_spent; })]);
 
-            var color = d3.scaleOrdinal(d3.schemeCategory10);  // set the colour scale
+            color = d3.scaleOrdinal(d3.schemeCategory10);  // set the colour scale
 
-            // Loop through each economy category (key)
+            if (legenddiv != null) {
+                $(legenddiv).remove();
+            }
+
+
+            legenddiv = $("<div class='legend'></div>");
+            var html = "";
+            for (var i = 0; i < chartData.length; i++) {
+                html +=
+                    '<svg id="category' + i + '" width="10" height="10"><rect width="10" height="10"style="fill:' + color(chartData[i].key) + ';stroke-width:1;stroke:rgb(0,0,0)"/></svg> ' +
+                    chartData[i].key + '<br>';
+            }
+            legenddiv.html(html);
+            legenddiv.appendTo(ctrlHTMLElem);
+
+            // Loop through each category (key)
             chartData.forEach(function (d) {
-
-                svg.append("path")
-                    .attr("class", "line")
-                    .style("stroke", function () { // Add dynamically
-                        return d.color = color(d.key);
-                    })
-                    .attr("d", priceline(d.values));
-
+                if (!scatter) {
+                    svg.append("path")
+                        .attr("class", "line")
+                        .style("stroke", function () { // Add dynamically
+                            return d.color = color(d.key);
+                        })
+                        .attr("d", priceline(d.values));
+                }
+                var col = color(d.key);
                 svg.selectAll("dot")
                     .data(d.values)
                     .enter().append("circle")
                     .attr("r", 2)
                     .attr("cx", function (d) { return x(d.properties.gdp_md_est); })
                     .attr("cy", function (d) { return y(d.properties.money_spent); })
+                    .style("fill", col)
                     .on("mouseover", function (d) {
                         tooltipdiv.transition()
                             .duration(200)
                             .style("opacity", .9);
-                        tooltipdiv.html("Country: " + d.properties.name + "<br>" + "GDP :" + d.properties.gdp_md_est + "<br>" + "Money Spent :" + d.properties.money_spent)
+                        tooltipdiv.html("Country: " + d.properties.name + "<br>" + "GDP :" + numberWithCommas(d.properties.gdp_md_est) + "<br>" + "Money Spent :" + numberWithCommas(d.properties.money_spent))
                             .style("left", (d3.event.pageX) + "px")
                             .style("top", (d3.event.pageY - 28) + "px");
                     })
@@ -2647,14 +2667,31 @@ var LineGraphHandler = (function () {
             svg.append("g")
                 .attr("class", "x axis")
                 .attr("transform", "translate(0," + height + ")")
-                .call(xAxis);
+                .call(xAxis.ticks(4));
+
 
             // Add the Y Axis
             svg.append("g")
                 .attr("class", "y axis")
-                .call(yAxis);
+                .call(yAxis.ticks(10));
 
+            // text label for the x axis
+            svg.append("text")
+                .attr("transform",
+                "translate(" + (width - 60) + " ," +
+                (height - 30) + ")")
+                .attr("dy", "2em")
+                .style("text-anchor", "middle")
+                .text("Estimated GDP (millions USD)");
 
+            // text label for the y axis
+            svg.append("text")
+                .attr("y", 5)
+                .attr("x", -50)
+                .attr("transform", "rotate(-90)")
+                .attr("dy", "2em")
+                .style("text-anchor", "middle")
+                .text("Money Spent (USD)");
         },
         hide: function () {
 
@@ -2672,6 +2709,68 @@ var LineGraphHandler = (function () {
                 }
             }
         },
+        attachControls: function () {
+            // control buttons attachment
+            // varies depending on the type of the barchart
+
+            ctrlHTMLElem = $("<div class='countriesControl'></div>").appendTo(graphElem);
+            var jdiv = (ctrlHTMLElem); // holds the div to which control belongs
+            var form; // holds form element
+            var radioBtn;
+
+            // if countries - attach control group (game[0-10]|owners/active/average time/active:owners) 
+            //                                      radio      radio         
+            if (type == "economy") {
+                form = $("<form id='gamesForm'></form>");
+
+                var scatterCheckbox = ($("<input type='checkbox'>"))
+                    .appendTo(($("<label>Scatterplot</label>"))
+                        .appendTo(jdiv));
+
+                if (scatter) {
+                    scatterCheckbox.prop("checked", true);
+                }
+                // attach sort for both types
+
+                scatterCheckbox.on('change', function (e) {
+                    if (this.checked) {
+                        scatter = true;
+                    } else {
+                        scatter = false;
+                    }
+                    // LineGraphHandler.resetChartData();
+                    LineGraphHandler.redraw();
+                });
+
+                // property handler
+                function updateProperty(e) {
+                    propertyParams[0] = this.value;
+                    LineGraphHandler.resetChartData();
+                    LineGraphHandler.redraw();
+                }
+                form = $("<form id='propertyForm'></form>");
+                // Economy
+                radioBtn = $('<input type="radio" name="propertyForm" value="economy">Economy levels</br>');
+                radioBtn.on('change', updateProperty);
+                radioBtn.prop("checked", true);
+                form.append(radioBtn);
+                // Income
+                radioBtn = $('<input type="radio" name="propertyForm" value="income_grp">Income Groups</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+                // Continents 
+                radioBtn = $('<input type="radio" name="propertyForm" value="continent">Continents</br>');
+                radioBtn.on('change', updateProperty);
+                form.append(radioBtn);
+
+                form.appendTo(jdiv);
+
+
+            }
+        },
+        detachControls: function () {
+            $(ctrlHTMLElem).remove();
+        },
         startSBC: function (parameters) {
             LineGraphHandler.stopSBC();
             tooltipdiv = d3.select("body").append("div")
@@ -2681,11 +2780,13 @@ var LineGraphHandler = (function () {
             propertyParams = parameters.properties;
             graphElem = document.getElementById("lineGraph");
             LineGraphHandler.resetChartData();
+            LineGraphHandler.attachControls();
             LineGraphHandler.redraw();
             window.addEventListener("resize", LineGraphHandler.redraw);
         },
         stopSBC: function () {
             window.removeEventListener("resize", LineGraphHandler.redraw);
+            LineGraphHandler.detachControls();
             LineGraphHandler.hide();
             $(tooltipdiv).remove();
         }
