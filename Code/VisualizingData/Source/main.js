@@ -1709,13 +1709,21 @@ var StackedBarchartHandler = (function () {
                 var sortfunc;
                 if (percent) {
                     sortfunc = function (a, b) {
-                        var valueA = a[types.length - 1].value[1] - a[types.length - 1].value[0]; // ignore upper and lowercase
-                        var valueB = b[types.length - 1].value[1] - b[types.length - 1].value[0]; // ignore upper and lowercase
-                        if (valueA == valueB) {
-                            var valueA = a[types.length - 2].value[1] - a[types.length - 2].value[0]; // ignore upper and lowercase
-                            var valueB = b[types.length - 2].value[1] - b[types.length - 2].value[0]; // ignore upper and lowercase      
+                        // var valueA = a[types.length - 1].value[1] - a[types.length - 1].value[0]; // ignore upper and lowercase
+                        // var valueB = b[types.length - 1].value[1] - b[types.length - 1].value[0]; // ignore upper and lowercase
+                        // if (valueA == valueB) {
+                        //     valueA = a[types.length - 2].value[1] - a[types.length - 2].value[0]; // ignore upper and lowercase
+                        //     valueB = b[types.length - 2].value[1] - b[types.length - 2].value[0]; // ignore upper and lowercase      
+                         
+                        // }
+                        var valueA, valueB;
+                        for (var i = types.length - 1; i >= 0; i--){
+                            valueA = a[i].value[1] - a[i].value[0];
+                            valueB = b[i].value[1] - b[i].value[0];
+                            if(valueA != valueB)
+                                return valueA - valueB;
                         }
-                        return valueA - valueB;
+                        return 0;
                     }
                 }
                 else {
