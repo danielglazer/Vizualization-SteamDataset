@@ -396,7 +396,8 @@ function continentsRadialAxis() {
 }
 // "About"'s Listener Handler function
 function about() {
-    console.log(this);
+    stopHandlers();
+    AboutHandler.start();
 }
 function stopHandlers() {
     BarchartHandler.stopBC();
@@ -405,6 +406,7 @@ function stopHandlers() {
     ParallelCoordinateHandler.stop();
     RadialAxisHandler.stop();
     LineGraphHandler.stopSBC();
+    AboutHandler.stop();
 }
 
 /**
@@ -2978,6 +2980,33 @@ var ParallelCoordinateHandler = (function () {
         stop: function () {
             ParallelCoordinateHandler.hide();
             window.removeEventListener("resize", ParallelCoordinateHandler.redraw);
+        }
+    };
+}());
+
+var AboutHandler = (function (){
+    var aboutHTMLElem = document.getElementById("about");
+    return {
+        hide: function () {
+            if (aboutHTMLElem != null) {
+                if (!aboutHTMLElem.classList.contains("invisible")) {
+                    aboutHTMLElem.classList.add("invisible");
+                }
+            }
+        },
+        show: function () {
+            if (aboutHTMLElem != null) {
+                if (aboutHTMLElem.classList.contains("invisible")) {
+                    aboutHTMLElem.classList.remove("invisible");
+                }
+            }
+        },
+        start: function (parameters) {
+            aboutHTMLElem = document.getElementById("about")
+            AboutHandler.show();
+        },
+        stop: function () {
+            AboutHandler.hide();
         }
     };
 }());
