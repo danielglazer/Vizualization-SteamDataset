@@ -10,12 +10,13 @@ we also used data from a file in a GeoJSON format that was published here : http
 
 Libraries require for our visualizations are located at 
 'Code\VisualizingData\Libraries' but internet connection is required due to several CDNs. 
+We can assure performance only in Chrome browser. 
 
 # Project Structure
  
 More inforamation can be found in the 'ProjectDocumentation' folder regarding:
 
-- How we extract our data (queriesCurrent.txt) . 
+- How we extract our data (queriesCurrent.txt in the path Code\DerivingData) . 
 
 - The visualizations themselves in the our paper (SteamDatasetVisualization.docx) . 
 
@@ -34,7 +35,7 @@ One can review our source code and also see the derived data that was extracted
 
 ## License
 
-This project is private and so does the licence.
+This project is private and so does not have a licence.
 
 ## Acknowledgments
 
