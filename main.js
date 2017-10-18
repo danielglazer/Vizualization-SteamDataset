@@ -52,99 +52,104 @@ $(document).ready(function () {
         $("#menu-toggle").popover('dispose');
 
     });
-    (function (document, window, index) {
-        // feature detection for drag&drop upload
-        var isAdvancedUpload = function () {
-            var div = document.createElement('div');
-            return (('draggable' in div) || ('ondragstart' in div && 'ondrop' in div)) && 'FormData' in window && 'FileReader' in window;
-        }();
-        // applying the effect for every form
-        var forms = document.querySelectorAll('.box');
-        Array.prototype.forEach.call(forms, function (form) {
-            var input = form.querySelector('input[type="file"]'),
-                label = form.querySelector('label'),
-                errorMsg = form.querySelector('.box__error span'),
-                restart = form.querySelectorAll('.box__restart'),
-                droppedFiles = false,
-                //  showFiles = function (files) {
-                //      label.textContent = files.length > 1 ? (input.getAttribute('data-multiple-caption') || '').replace('{count}', files.length) : files[0].name;
-                //  },
-                triggerFormSubmit = function () {
-                    var event = document.createEvent('HTMLEvents');
-                    event.initEvent('submit', true, false);
-                    form.dispatchEvent(event);
-                };
-            // automatically submit the form on file select
-            Handler.addListener(input, 'change', function (e) {
-                //  showFiles(e.target.files);
-                droppedFiles = e.target.files;
-                triggerFormSubmit();
-            }, false);
-            // drag&drop files if the feature is available
-            if (isAdvancedUpload) {
-                form.classList.add('has-advanced-upload'); // letting the CSS part to know drag&drop is supported by the browser
-                ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
-                    Handler.addListener(form, event, function (e) {
-                        // preventing the unwanted behaviours
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }, false);
+    // (function (document, window, index) {
+    //     // feature detection for drag&drop upload
+    //     var isAdvancedUpload = function () {
+    //         var div = document.createElement('div');
+    //         return (('draggable' in div) || ('ondragstart' in div && 'ondrop' in div)) && 'FormData' in window && 'FileReader' in window;
+    //     }();
+    //     // applying the effect for every form
+    //     var forms = document.querySelectorAll('.box');
+    //     Array.prototype.forEach.call(forms, function (form) {
+    //         var input = form.querySelector('input[type="file"]'),
+    //             label = form.querySelector('label'),
+    //             errorMsg = form.querySelector('.box__error span'),
+    //             restart = form.querySelectorAll('.box__restart'),
+    //             droppedFiles = false,
+    //             //  showFiles = function (files) {
+    //             //      label.textContent = files.length > 1 ? (input.getAttribute('data-multiple-caption') || '').replace('{count}', files.length) : files[0].name;
+    //             //  },
+    //             triggerFormSubmit = function () {
+    //                 var event = document.createEvent('HTMLEvents');
+    //                 event.initEvent('submit', true, false);
+    //                 form.dispatchEvent(event);
+    //             };
+    //         // automatically submit the form on file select
+    //         Handler.addListener(input, 'change', function (e) {
+    //             //  showFiles(e.target.files);
+    //             droppedFiles = e.target.files;
+    //             triggerFormSubmit();
+    //         }, false);
+    //         // drag&drop files if the feature is available
+    //         if (isAdvancedUpload) {
+    //             form.classList.add('has-advanced-upload'); // letting the CSS part to know drag&drop is supported by the browser
+    //             ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
+    //                 Handler.addListener(form, event, function (e) {
+    //                     // preventing the unwanted behaviours
+    //                     e.preventDefault();
+    //                     e.stopPropagation();
+    //                 }, false);
 
-                });
-                ['dragover', 'dragenter'].forEach(function (event) {
-                    Handler.addListener(form, event, function () {
-                        form.classList.add('is-dragover');
-                    }, false);
+    //             });
+    //             ['dragover', 'dragenter'].forEach(function (event) {
+    //                 Handler.addListener(form, event, function () {
+    //                     form.classList.add('is-dragover');
+    //                 }, false);
 
-                });
-                ['dragleave', 'dragend', 'drop'].forEach(function (event) {
-                    Handler.addListener(form, event, function () {
-                        form.classList.remove('is-dragover');
-                    }, false);
-                });
-                Handler.addListener(form, 'drop', function (e) {
-                    droppedFiles = e.dataTransfer.files; // the files that were dropped
-                    //  showFiles(droppedFiles);
-                    triggerFormSubmit();
-                }, false);
-            }
-            // if the form was submitted
-            Handler.addListener(form, 'submit', function (e) {
-                // preventing the duplicate submissions if the current one is in progress
-                if (form.classList.contains('is-uploading')) return false;
+    //             });
+    //             ['dragleave', 'dragend', 'drop'].forEach(function (event) {
+    //                 Handler.addListener(form, event, function () {
+    //                     form.classList.remove('is-dragover');
+    //                 }, false);
+    //             });
+    //             Handler.addListener(form, 'drop', function (e) {
+    //                 droppedFiles = e.dataTransfer.files; // the files that were dropped
+    //                 //  showFiles(droppedFiles);
+    //                 triggerFormSubmit();
+    //             }, false);
+    //         }
+    //         // if the form was submitted
+    //         Handler.addListener(form, 'submit', function (e) {
+    //             // preventing the duplicate submissions if the current one is in progress
+    //             if (form.classList.contains('is-uploading')) return false;
 
-                form.classList.add('is-uploading');
-                form.classList.remove('is-error');
+    //             form.classList.add('is-uploading');
+    //             form.classList.remove('is-error');
 
-                var reader = new FileReader();
-                reader.onloadend = function () {
-                    form.classList.remove('is-uploading');
-                    var data = validateJSON(this.result);
-                    form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
-                    if (isSuccess(data)) {
-                        console.log(data);
-                        fileData = data;
-                        setUpHomeScreen();
-                    }
-                };
-                reader.readAsText(droppedFiles[0]);
-                e.preventDefault();
-            }, false);
+    //             var reader = new FileReader();
+    //             reader.onloadend = function () {
+    //                 form.classList.remove('is-uploading');
+    //                 var data = validateJSON(this.result);
+    //                 form.classList.add(isSuccess(data) == true ? 'is-success' : 'is-error');
+    //                 if (isSuccess(data)) {
+    //                     console.log(data);
+    //                     fileData = data;
+    //                     setUpHomeScreen();
+    //                 }
+    //             };
+    //             reader.readAsText(droppedFiles[0]);
+    //             e.preventDefault();
+    //         }, false);
 
-            // restart the form if has a state of error/success
-            Array.prototype.forEach.call(restart, function (entry) {
-                Handler.addListener(entry, 'click', function (e) {
-                    e.preventDefault();
-                    form.classList.remove('is-error', 'is-success');
-                    input.click();
-                }, false);
-            });
-            // Firefox focus bug fix for file input
-            Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
-            Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
-        });
+    //         // restart the form if has a state of error/success
+    //         Array.prototype.forEach.call(restart, function (entry) {
+    //             Handler.addListener(entry, 'click', function (e) {
+    //                 e.preventDefault();
+    //                 form.classList.remove('is-error', 'is-success');
+    //                 input.click();
+    //             }, false);
+    //         });
+    //         // Firefox focus bug fix for file input
+    //         Handler.addListener(input, 'focus', function () { input.classList.add('has-focus'); }, false);
+    //         Handler.addListener(input, 'blur', function () { input.classList.remove('has-focus'); }, false);
+    //     });
 
-    }(document, window, 0));
+    // }(document, window, 0));
+});
+
+d3.json("geojson_medium_steam.json",function(data){
+    fileData = data;
+    setUpHomeScreen();
 });
 
 function validateJSON(str) {
