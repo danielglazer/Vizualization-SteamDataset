@@ -6,6 +6,8 @@ This is our project in the course 'Information Visualization' in Haifa Universit
 This project purpose is to visualize the Steam community with Steam Dataset that was published here : https://steam.internet.byu.edu/ ,
 we also used data from a file in a GeoJSON format that was published here : https://geojson-maps.ash.ms/ . 
 
+Visit the site at https://danielglazer.github.io/Vizualization-SteamDataset/.
+
 # Dependencies
 
 Libraries require for our visualizations are located at 
